@@ -44,7 +44,7 @@
   /* ---------- hint pill ---------- */
   #hint{
     position:fixed;z-index:6;
-    top:calc(14px + var(--safe-t));left:50%;transform:translateX(-50%);
+    top:calc(66px + var(--safe-t));left:50%;transform:translateX(-50%);
     max-width:min(90vw,340px);
     padding:9px 17px;border-radius:999px;
     background:rgba(20,10,26,.62);
@@ -85,59 +85,182 @@
     letter-spacing:.02em;
   }
 
-  /* ---------- opening card ---------- */
-  #gate{
+  /* ---------- the opening card ----------
+     The first thing she sees after the QR. It should read as the next page of the letter, not
+     an app: one quiet line, two choices, the more magical one first. */
+  .screen{
     position:fixed;inset:0;z-index:9;
     background:
       radial-gradient(120% 90% at 50% 38%, #3A1F3C 0%, #1A0E20 55%, #0B0A14 100%);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
-    gap:2.4rem;padding:calc(6vh + var(--safe-t)) 8vw calc(6vh + var(--safe-b));
-    text-align:center;
-    transition:opacity 1.5s ease;
+    padding:calc(5vh + var(--safe-t)) 16px calc(5vh + var(--safe-b));
+    text-align:center;overflow:hidden;
+    transition:opacity 1.2s ease;
   }
-  #gate.gone{opacity:0;pointer-events:none;}
+  .screen.gone{opacity:0;pointer-events:none;}
+  .screen > *{position:relative;}
+  #gate{gap:clamp(1.1rem,3.2vh,2rem);}
 
-  #gate .mark{width:min(140px,26vw);height:auto;opacity:.95;}
+  /* staggered rise, so the card opens rather than appears */
+  .rise{opacity:0;transform:translateY(14px);animation:rise 1.4s cubic-bezier(.2,.75,.25,1) forwards;}
+  .rise.d1{animation-delay:.15s}.rise.d2{animation-delay:.55s}.rise.d3{animation-delay:1.0s}
+  .rise.d4{animation-delay:1.35s}.rise.d5{animation-delay:1.9s}
+  @keyframes rise{to{opacity:1;transform:none}}
 
+  /* a few marigold petals drifting up behind everything */
+  .drift{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .drift i{
+    position:absolute;bottom:-4vh;display:block;border-radius:60% 40% 60% 40%;
+    background:radial-gradient(circle at 35% 35%, #F6B23A, #F0892B 70%);
+    opacity:0;animation:floatUp linear infinite;
+  }
+  .drift i.g{background:radial-gradient(circle at 35% 35%, #F0566F, #CE2E4F 70%);}
+  @keyframes floatUp{
+    0%  {transform:translate3d(0,0,0) rotate(0);opacity:0;}
+    12% {opacity:var(--o);}
+    85% {opacity:var(--o);}
+    100%{transform:translate3d(var(--dx),-112vh,0) rotate(var(--r));opacity:0;}
+  }
+
+  #gate .mark{width:min(120px,24vw);height:auto;opacity:.95;}
   #gate h1{
-    margin:0;
-    font-weight:400;
-    font-size:clamp(30px,6.2vh,58px);
-    line-height:1.14;
-    color:var(--cream);
-    letter-spacing:.005em;
+    margin:0;font-weight:400;
+    font-size:clamp(32px,6.2vh,58px);line-height:1.14;
+    color:var(--cream);letter-spacing:.005em;
   }
   #gate h1 em{
-    display:block;font-style:italic;
-    color:var(--gold);
-    font-size:.56em;
-    margin-top:.5em;
-    letter-spacing:.05em;
-    opacity:.9;
+    display:block;font-style:italic;color:var(--gold);
+    font-size:.56em;margin-top:.5em;letter-spacing:.05em;opacity:.9;
   }
-  #gate p{
-    margin:0;max-width:30ch;
-    color:#C9B4C6;font-size:clamp(14px,2.1vh,18px);line-height:1.6;
+  .whisper{
+    margin:0;max-width:34ch;
+    color:#C9B4C6;font-style:italic;font-size:clamp(15px,2.2vh,19px);line-height:1.6;
   }
-  #begin{
-    font-family:inherit;
-    cursor:pointer;
-    border:1px solid rgba(232,180,74,.5);
-    background:rgba(232,180,74,.07);
-    color:var(--gold);
-    font-size:clamp(15px,2.3vh,19px);
-    letter-spacing:.09em;
-    padding:.95em 2.6em;
-    border-radius:999px;
-    transition:background .35s ease, transform .35s ease, border-color .35s ease;
+
+  .choices{
+    display:flex;flex-direction:column;gap:12px;
+    width:min(100%,360px);margin-top:.4rem;
   }
-  #begin:hover,#begin:focus-visible{
-    background:rgba(232,180,74,.16);
-    border-color:rgba(232,180,74,.85);
-    transform:translateY(-2px);
-    outline:none;
+  .choices.desk{flex-direction:column-reverse;}
+  .choice{
+    font-family:inherit;cursor:pointer;text-align:left;
+    display:flex;align-items:center;gap:14px;
+    padding:15px 20px 15px 16px;border-radius:20px;
+    border:1px solid rgba(246,238,221,.22);
+    background:rgba(246,238,221,.04);
+    color:var(--cream);
+    transition:background .35s ease,border-color .35s ease,transform .35s ease,box-shadow .35s ease;
   }
-  #begin:focus-visible{box-shadow:0 0 0 3px rgba(232,180,74,.35);}
+  .choice:hover,.choice:focus-visible{
+    background:rgba(246,238,221,.09);border-color:rgba(246,238,221,.5);
+    transform:translateY(-2px);outline:none;
+  }
+  .choice:active{transform:scale(.98);}
+  .choice .ic{
+    flex:none;width:44px;height:44px;border-radius:50%;
+    display:grid;place-items:center;
+    border:1px solid rgba(246,238,221,.25);color:#E6D6E2;
+  }
+  .choice .ic svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+  .choice b{display:block;font-weight:400;font-size:clamp(17px,2.4vh,20px);line-height:1.25;}
+  .choice small{display:block;margin-top:3px;font-size:13.5px;color:#B9A4B6;font-style:italic;}
+  .choice.primary{
+    border-color:rgba(232,180,74,.65);
+    background:linear-gradient(135deg,rgba(240,137,43,.22),rgba(232,180,74,.08));
+    box-shadow:0 10px 34px rgba(0,0,0,.35),0 0 28px rgba(232,180,74,.16);
+    animation:glow 3.2s ease-in-out 3s infinite;
+  }
+  .choice.primary b{color:#FBE7B8;}
+  .choice.primary .ic{border-color:rgba(232,180,74,.7);color:var(--gold);background:rgba(232,180,74,.1);}
+  .choice.primary:hover,.choice.primary:focus-visible{border-color:rgba(232,180,74,1);background:linear-gradient(135deg,rgba(240,137,43,.3),rgba(232,180,74,.12));}
+  @keyframes glow{
+    0%,100%{box-shadow:0 10px 34px rgba(0,0,0,.35),0 0 24px rgba(232,180,74,.14);}
+    50%    {box-shadow:0 12px 38px rgba(0,0,0,.4), 0 0 42px rgba(232,180,74,.34);}
+  }
+  .sound{
+    margin:0;display:flex;align-items:center;gap:8px;
+    color:#9C879A;font-size:13px;letter-spacing:.04em;
+  }
+  .sound svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+
+  /* ---------- before the camera opens ---------- */
+  #prep{gap:clamp(1rem,2.8vh,1.7rem);}
+  #prep .art{width:min(230px,56vw);height:auto;}
+  #prep h2{
+    margin:0;font-weight:400;color:var(--cream);
+    font-size:clamp(25px,4.4vh,38px);line-height:1.2;
+  }
+  #prep p{margin:0;max-width:31ch;color:#C9B4C6;font-size:clamp(15px,2.1vh,18px);line-height:1.62;}
+  #prep p.fine{font-size:13px;color:#958194;max-width:34ch;line-height:1.55;}
+  .pill{
+    font-family:inherit;cursor:pointer;
+    border:1px solid rgba(232,180,74,.65);
+    background:linear-gradient(135deg,rgba(240,137,43,.24),rgba(232,180,74,.1));
+    color:#FBE7B8;
+    font-size:clamp(16px,2.3vh,19px);letter-spacing:.06em;
+    padding:.95em 2.6em;border-radius:999px;
+    transition:background .35s ease,transform .35s ease,border-color .35s ease;
+  }
+  .pill:hover,.pill:focus-visible{border-color:rgba(232,180,74,1);transform:translateY(-2px);outline:none;}
+  .pill:active{transform:scale(.97);}
+  .link{
+    font-family:inherit;cursor:pointer;background:none;border:0;
+    color:#B9A4B6;font-size:14px;font-style:italic;letter-spacing:.02em;
+    text-decoration:underline;text-decoration-color:rgba(185,164,182,.4);text-underline-offset:5px;
+    padding:8px;
+  }
+  .link:hover,.link:focus-visible{color:var(--cream);outline:none;}
+
+  /* ---------- AR: looking for the picture ---------- */
+  #scan{
+    position:fixed;inset:0;z-index:4;pointer-events:none;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;
+    opacity:0;transition:opacity .6s ease;
+  }
+  #scan.on{opacity:1;}
+  #scan .frame{
+    position:relative;width:min(66vw,300px);aspect-ratio:4/3;
+    animation:breatheFrame 2.4s ease-in-out infinite;
+  }
+  #scan .frame i{position:absolute;width:30px;height:30px;border:2px solid rgba(251,231,184,.9);}
+  #scan .frame i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-top-left-radius:14px;}
+  #scan .frame i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-top-right-radius:14px;}
+  #scan .frame i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-bottom-left-radius:14px;}
+  #scan .frame i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-bottom-right-radius:14px;}
+  @keyframes breatheFrame{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.04);opacity:1}}
+  #scan p{
+    margin:0;padding:9px 18px;border-radius:999px;
+    background:rgba(20,10,26,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    color:var(--cream);font-size:15px;
+  }
+  #scanAlt{pointer-events:auto;opacity:0;transition:opacity 1s ease;
+    background:rgba(20,10,26,.45);border-radius:999px;padding:8px 16px;}
+  #scanAlt.on{opacity:1;}
+
+  /* ---------- a small sheet for when something needs her decision ---------- */
+  #sheet{
+    position:fixed;left:0;right:0;margin:0 auto;bottom:calc(18px + var(--safe-b));z-index:12;
+    width:min(calc(100vw - 32px),380px);
+    padding:20px 20px 14px;border-radius:22px;text-align:center;
+    background:rgba(28,16,34,.92);border:1px solid rgba(246,238,221,.16);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    box-shadow:0 16px 50px rgba(0,0,0,.5);
+    animation:lift .7s cubic-bezier(.2,.8,.2,1) both;
+  }
+  #sheet p{margin:0 0 14px;color:var(--cream);font-size:15.5px;line-height:1.55;}
+  #sheet .pill{padding:.75em 2em;font-size:16px;}
+
+  /* ---------- "Just watch": the sky behind the floating island ---------- */
+  #sky,#starfield,#vignette{position:fixed;inset:0;pointer-events:none;display:none;}
+  #sky{z-index:0;}
+  #starfield{z-index:0;opacity:0;background-repeat:repeat;}
+  #vignette{z-index:2;background:
+    linear-gradient(to top,rgba(14,6,20,.62) 0%,rgba(14,6,20,.28) 16%,rgba(14,6,20,0) 30%),
+    radial-gradient(130% 100% at 50% 48%,rgba(0,0,0,0) 55%,rgba(8,4,14,.55) 100%);}
+  body.watching #sky,body.watching #starfield,body.watching #vignette{display:block;}
+  /* her fingers move the camera, not the page */
+  body.watching #stage{touch-action:none;cursor:grab;}
+  body.watching #stage:active{cursor:grabbing;}
 
   /* ---------- controls ---------- */
   #hud{
@@ -281,28 +404,56 @@
   @media (prefers-reduced-motion: reduce){
     #lyric{transition-duration:.01ms;}
     #love.on{animation:none;}
+    .rise{animation-duration:.01ms;animation-delay:0s !important;}
+    .choice.primary,#scan .frame{animation:none;}
   }
 </style>
 </head>
 <body>
 
+<!-- "Just watch" only: the sky the island floats in, drawn behind the transparent canvas -->
+<div id="sky"></div>
+<div id="starfield"></div>
+
 <!-- MindAR's scene lives here. It must fill the viewport — see the #stage rule above. -->
 <div id="stage"></div>
+<div id="vignette"></div>
 
 <div id="lyric-wrap"><div id="lyric"></div></div>
 
 <div id="endcard"><div class="inner"><div class="q" id="endq"></div></div></div>
 
 <div id="hud">
-  <button class="btn" id="btnSound" title="Sound" aria-label="Toggle sound">
-    <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="wave1" d="M16.5 8.5a5 5 0 0 1 0 7"/><path id="wave2" d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  <button class="btn" id="btnRecenter" title="Back to the story" aria-label="Back to the story" hidden>
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2"/></svg>
+  </button>
+  <button class="btn" id="btnPause" title="Pause" aria-label="Pause" hidden>
+    <svg viewBox="0 0 24 24"><path id="icPause" d="M9 6v12M15 6v12"/><path id="icPlay" d="M8 5.5v13l10.5-6.5z" style="display:none"/></svg>
   </button>
   <button class="btn" id="btnReplay" title="Play again" aria-label="Play again">
     <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></svg>
   </button>
+  <button class="btn" id="btnSound" title="Sound" aria-label="Toggle sound">
+    <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="wave1" d="M16.5 8.5a5 5 0 0 1 0 7"/><path id="wave2" d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  </button>
+  <button class="btn" id="btnHome" title="Back to the start" aria-label="Back to the start">
+    <svg viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5"/><path d="M6.5 10v9h11v-9"/></svg>
+  </button>
 </div>
 
 <div id="hint" hidden></div>
+
+<!-- AR: shown while the camera is looking for the picture -->
+<div id="scan">
+  <div class="frame"><i></i><i></i><i></i><i></i></div>
+  <p>Go to the second page in your letter</p>
+  <button class="link" id="scanAlt">Can't find it? Just watch instead</button>
+</div>
+
+<div id="sheet" hidden>
+  <p id="sheetMsg"></p>
+  <button class="pill" id="sheetBtn"></button>
+</div>
 
 <!-- the letter, folded shut until the end of the song -->
 <button id="love" aria-label="Open the letter">
@@ -327,17 +478,50 @@
   <span id="dTime">0.0s</span>
 </div>
 
-<div id="gate">
-  <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
+<!-- before the camera opens: so the permission prompt is never the first thing she meets -->
+<div id="prep" class="screen" hidden>
+  <svg class="art rise d1" viewBox="0 0 240 190" aria-hidden="true">
+    <!-- the letter, lying flat -->
+    <path d="M28 150 L120 176 L212 150 L120 126 Z" fill="rgba(246,238,221,.08)" stroke="#E8B44A" stroke-opacity=".5" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M70 152 L92 143 L101 147 L114 139 L127 146 L140 141 L168 151" fill="none" stroke="#E8B44A" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" opacity=".85"/>
+    <!-- the phone, held above it -->
+    <g transform="translate(120 60) rotate(-8)">
+      <rect x="-30" y="-50" width="60" height="100" rx="10" fill="#1E1226" stroke="#F6EEDD" stroke-opacity=".7" stroke-width="1.6"/>
+      <rect x="-24" y="-41" width="48" height="80" rx="4" fill="rgba(240,137,43,.16)"/>
+      <path d="M-18 22 L-8 6 L-2 13 L7 -4 L18 22 Z" fill="#E8B44A" opacity=".85"/>
+      <circle cx="0" cy="-17" r="4.5" fill="#F0892B"/>
+    </g>
+    <path d="M104 116 L84 140 M136 116 L156 140" stroke="#F6EEDD" stroke-opacity=".35" stroke-width="1.2" stroke-dasharray="3 4"/>
+  </svg>
+  <h2 class="rise d2">Go to the second page<br>in your letter</h2>
+  <p class="rise d3">Lay it flat somewhere bright, then hold your phone above it, about a forearm away. The hills will rise out of the paper.</p>
+  <button class="pill rise d4" id="openCam">Open the camera</button>
+  <p class="fine rise d4">Your browser will ask to use the camera.</p>
+  <button class="link rise d5" id="prepWatch">or just watch it instead</button>
+</div>
+
+<div id="gate" class="screen">
+  <div class="drift" id="drift" aria-hidden="true"></div>
+  <svg class="mark rise d1" viewBox="0 0 120 120" aria-hidden="true">
     <g fill="none" stroke="#E8B44A" stroke-width="1.5" stroke-linecap="round">
       <path d="M8 86 L34 52 L46 66 L62 38 L78 62 L92 46 L112 76" stroke-opacity=".55"/>
       <path d="M8 86 H112" stroke-opacity=".3"/>
     </g>
     <g id="markPetals" fill="#E8B44A" opacity=".85"></g>
   </svg>
-  <h1>Timro Lagi<em>तिम्रो लागि</em></h1>
-  <p id="gateNote">Tap, and hold your camera over the card.</p>
-  <button id="begin">Begin</button>
+  <h1 class="rise d2">Timro Lagi<em>तिम्रो लागि</em></h1>
+  <p class="whisper rise d3">Something small, made only for you.</p>
+  <div class="choices rise d4" id="choices">
+    <button class="choice" id="goAR">
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z"/></svg></span>
+      <span><b>Bring the letter to life</b><small id="arSub">hold your phone over the picture</small></span>
+    </button>
+    <button class="choice" id="goWatch">
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="M8.5 5.8v12.4L18.5 12z"/></svg></span>
+      <span><b>Just watch</b><small>no camera needed</small></span>
+    </button>
+  </div>
+  <p class="sound rise d5"><svg viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6" rx="1.5"/><rect x="16.5" y="14" width="4" height="6" rx="1.5"/></svg>best with sound on</p>
 </div>
 
 <audio id="song" preload="auto"></audio>
@@ -441,9 +625,11 @@ const CONFIG = {
    phone, with no rebuild. Put the build id on screen: GitHub Pages plus phone caching makes
    "is this even the new version?" a question worth answering at a glance.
    ============================================================ */
-const BUILD = 'hd1';
+const BUILD = 'hd2';
 const QS    = new URLSearchParams(location.search);
-const DEMO  = QS.has('demo');          // no camera: orbit the diorama on a desktop
+// "Just watch": no camera, no card — the island floats in its own sky and she can orbit and
+// zoom it. Set when she picks it on the opening card (or from the AR fallbacks), never by URL.
+let WATCH = false;
 const DEBUG = QS.has('debug');         // on-screen diagnostics
 // ?lite strips shadows, the env map and the small scatter. The perf escape hatch.
 const LITE  = QS.has('lite') && !QS.has('full');
@@ -461,6 +647,7 @@ const $ = id => document.getElementById(id);
 
 // Phones have no devtools. Surface anything uncaught on screen so it can be read out loud.
 function showDiag(msg){
+  if (!DEBUG) return;
   try{
     const h = $("hint"); if (!h) return;
     h.textContent = "⚠ " + msg; h.classList.add("wrap"); h.hidden = false;
@@ -2079,7 +2266,7 @@ AFRAME.registerComponent('diorama', {
     this.tmpV   = new THREE.Vector3();
     this.userRot = 0; this.amp = 0; this.yaw = 0; this.started = false;
     this.blink = 1; this.tilt = null; this.lastU = 0;
-    this.tiltAuto = !DEMO && TILT_FIXED === null && CONFIG.ar.tiltAuto;
+    this.tiltAuto = !WATCH && TILT_FIXED === null && CONFIG.ar.tiltAuto;
     const B = CONFIG.beats;
 
     this.setupRenderer();
@@ -2096,7 +2283,8 @@ AFRAME.registerComponent('diorama', {
     const moon = new THREE.DirectionalLight('#9FB4E8', 0);
     moon.position.set(-.5, 1.0, .4);
     sun.castShadow = !LITE;
-    sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
+    const SHM = MOBILE ? (WATCH ? 2048 : 1024) : (WATCH ? 4096 : 2048);
+    sun.shadow.mapSize.set(SHM, SHM);
     const sc = sun.shadow.camera;
     sc.left = -.85; sc.right = .85; sc.top = .95; sc.bottom = -.75; sc.near = .02; sc.far = 4.0;
     sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.012; sun.shadow.radius = 4;
@@ -2201,9 +2389,6 @@ AFRAME.registerComponent('diorama', {
     this.petals = buildPetals(LITE ? 14 : 26);
     root.add(this.petals.group);
 
-    if (DEMO){
-      addEventListener('pointermove', e => { if (e.buttons & 1) this.userRot += e.movementX*.008; });
-    }
   },
 
   setupRenderer(){
@@ -2291,7 +2476,6 @@ AFRAME.registerComponent('diorama', {
     const cam = this.el.sceneEl.camera;
     if (cam) cam.getWorldPosition(this.camPos);
     if (this.tiltAuto) this.updateTilt(dt);
-    if (DEMO) root.rotation.y = this.userRot;
 
     // the pop-up: it grows out of the card rather than simply being there
     root.scale.setScalar(Math.max(.0001, easeOutBack(t/1.2)));
@@ -2509,6 +2693,7 @@ AFRAME.registerComponent('diorama', {
     this.stars.pts.material.opacity = starAmt*(0.55 + 0.25*Math.sin(ts*2));
     this.animPoints(this.ff, ts, 'rise');
     this.animPoints(this.stars, ts, 'twinkle');
+    if (WATCH) paintSky(dusk, starAmt);
 
     /* ---- prayer flags in the wind ---- */
     for (const f of this.flags){
@@ -2532,13 +2717,15 @@ AFRAME.registerComponent('diorama', {
     this.glint.scale.setScalar(0.055 + 0.02*Math.sin(ts*8));
 
     /* ---- the overlay ---- */
-    if (t > B.finalLine && !$('endcard').classList.contains('on')){
-      $('endq').textContent = CONFIG.finalWords;
-      $('endcard').classList.add('on');
+    // follows the clock both ways, so jumping back (replay, scrub) takes it away again
+    const endOn = t > B.finalLine;
+    if (endOn !== $('endcard').classList.contains('on')){
+      if (endOn) $('endq').textContent = CONFIG.finalWords;
+      $('endcard').classList.toggle('on', endOn);
     }
     // the letter waits until the last line has had a moment to land
     $('love').classList.toggle('on', t > B.finalLine + 5 && $('final').hidden);
-    if (DEMO && !this.seeking){ $('dSeek').value = t; $('dTime').textContent = t.toFixed(1)+'s'; }
+    if (WATCH && DEBUG && !this.seeking){ $('dSeek').value = t; $('dTime').textContent = t.toFixed(1)+'s'; }
     // NB: no early-out when the song ends. The tracking has to keep running, or the diorama
     // freezes in mid-air the moment the music stops.
   },
@@ -2596,22 +2783,45 @@ function resetStory(){
   P.seek(0);
 }
 
-function launch(){
-  if (DEMO){ launchDemo(); return; }
-  hint('Opening camera… [' + BUILD + (LITE ? ' lite' : ' full') + ']');
+// Build ids and engineering notes stay off her screen unless ?debug asks for them.
+const TAG = DEBUG ? ' · ' + BUILD + (LITE ? ' lite' : ' full') : '';
+const TOUCH = matchMedia('(pointer:coarse)').matches;
 
+/* ---------- a small sheet: one message, one way forward ---------- */
+function sheet(msg, label, fn){
+  if (!msg){ $('sheet').hidden = true; return; }
+  hint(null);
+  $('sheetMsg').textContent = msg;
+  $('sheetBtn').textContent = label;
+  $('sheetBtn').onclick = ()=>{ $('sheet').hidden = true; fn(); };
+  $('sheet').hidden = false;
+}
+
+/* ---------- AR: the "find the picture" frame ---------- */
+let scanTimer = 0;
+function scanning(on){
+  $('scan').classList.toggle('on', on);
+  clearTimeout(scanTimer);
+  $('scanAlt').classList.remove('on');
+  // if the picture still hasn't been found after a while, offer the way out — quietly
+  if (on) scanTimer = setTimeout(()=> $('scanAlt').classList.add('on'), 14000);
+}
+
+const CAMERA_BLOCKED = 'The camera is blocked for this page. You can allow it in your browser settings and reload, or simply watch it here.';
+
+let camWait = 0;
+function launchAR(){
+  hint('Allow the camera when your browser asks' + TAG, true);
   // A pre-flight getUserMedia that opens the camera and closes it again leaves a black video
   // on some phones, so only the context and the permission get checked here. MindAR opens the
   // camera exactly once.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    hint('The camera needs a secure page: open this over https:// or http://localhost — not a file:// link.', true);
+    sheet('The camera needs this page to be opened over https. You can still watch it here.', 'Just watch', toWatch);
     return;
   }
   if (navigator.permissions && navigator.permissions.query){
     navigator.permissions.query({name:'camera'})
-      .then(p => p.state === 'denied'
-        ? hint('Camera permission is blocked. Allow it in your browser settings, then reload.', true)
-        : startAR())
+      .then(p => p.state === 'denied' ? sheet(CAMERA_BLOCKED, 'Just watch', toWatch) : startAR())
       .catch(startAR);
   } else startAR();
 }
@@ -2642,58 +2852,360 @@ function startAR(){
       '</a-entity>' +
     '</a-scene>';
 
+  // A dismissed permission prompt can leave getUserMedia hanging for ever, with no error to
+  // react to. Don't leave her looking at a black screen: after a while, offer the other way in.
+  clearTimeout(camWait);
+  camWait = setTimeout(()=> sheet('Still waiting for the camera. You can allow it when your browser asks, or simply watch it here.',
+                                  'Just watch', toWatch), 15000);
+
   const scene = $('stage').querySelector('a-scene');
   scene.addEventListener('arReady', ()=>{
-    hint('Point your camera at the card · ' + BUILD);
+    clearTimeout(camWait); sheet(null);
+    hint(DEBUG ? 'camera ready' + TAG : null);
+    scanning(true);
     // MindAR works out the camera's fov and aspect from #stage's box the instant AR starts.
     // If the layout had not settled by then (mobile URL bar, safe-area insets), make it
     // measure again on the next frame.
     requestAnimationFrame(()=> dispatchEvent(new Event('resize')));
   });
-  scene.addEventListener('arError', ()=>
-    hint('The camera could not start. Close anything else using it, then reload.', true));
+  scene.addEventListener('arError', ()=>{
+    clearTimeout(camWait); scanning(false); hint(null);
+    sheet("The camera couldn't start. It may be blocked, or busy in another app. You can still watch it here.",
+          'Just watch', toWatch);
+  });
 
   const anchor = $('anchor');
-  anchor.addEventListener('targetFound', ()=>{ hint(null); P.play(); });
+  anchor.addEventListener('targetFound', ()=>{ scanning(false); hint(null); P.play(); });
   anchor.addEventListener('targetLost',  ()=>{
     P.pause();
-    if (P.t < CONFIG.beats.hold) hint('Keep the card in view · ' + BUILD);
+    if (P.t < CONFIG.beats.hold) scanning(true);
   });
 }
 
-/* ?demo — no camera, no card. The island hangs in front of a dusk background and the pointer
-   spins it. Good for composing and for retiming the beats, but remember what it does not
-   cover: it bypasses MindAR entirely, so "it works here" says nothing about the AR path. */
-function launchDemo(){
+/* Every camera stream this page is handed, so leaving AR can close all of them — including one
+   that only arrives after she has already moved on (a late "Allow" on the permission prompt
+   would otherwise leave the camera running behind the story). */
+const camStreams = [];
+let camReleased = false;
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+  const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+  navigator.mediaDevices.getUserMedia = c => gum(c).then(st => {
+    if (camReleased){ st.getTracks().forEach(t => t.stop()); throw new Error('camera no longer needed'); }
+    camStreams.push(st); return st;
+  });
+}
+
+/* From AR to Just watch, without a reload (a reload would lose the tap that lets the song
+   play): let go of the camera, clear the stage, and float the island in its own sky. */
+function toWatch(){
+  clearTimeout(camWait); scanning(false); sheet(null); hint(null);
+  camReleased = true;
+  camStreams.forEach(st => st.getTracks().forEach(t => t.stop()));
+  const sc = $('stage').querySelector('a-scene');
+  if (sc){
+    try{ const sys = sc.systems['mindar-image-system']; if (sys) sys.stop(); }catch(e){}
+    document.querySelectorAll('video').forEach(v => {
+      try{ if (v.srcObject) v.srcObject.getTracks().forEach(t => t.stop()); }catch(e){}
+      v.remove();
+    });
+    $('stage').innerHTML = '';
+  }
+  startWatch();
+}
+
+/* ============================================================
+   Just watch
+
+   No camera, no card: the island hangs in a sky that follows the story from golden hour to
+   night, and a camera that knows the story frames it — wide for the climb, close for the diya,
+   closer still when he kneels. She can drag to orbit and pinch / scroll to zoom whenever she
+   likes; leave it alone for a few seconds and the camera eases back into the story.
+   ============================================================ */
+function startWatch(){
+  WATCH = true;
+  document.body.classList.add('watching');
+  $('btnPause').hidden = false;
+  resetStory();
   $('stage').innerHTML =
-    '<a-scene ' + RENDER + ' background="color: #140D1E"' +
-    ' vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">' +
-      '<a-entity camera look-controls="enabled: false" position="0 0.62 1.45" rotation="-19 0 0"></a-entity>' +
-      '<a-entity diorama rotation="0 0 0"></a-entity>' +
+    '<a-scene ' + RENDER + ' vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"' +
+    ' loading-screen="enabled: false">' +
+      '<a-entity camera="fov: 34; near: 0.01; far: 30" watchcam></a-entity>' +
+      '<a-entity diorama></a-entity>' +
     '</a-scene>';
+  if (DEBUG) setupScrub();
+  P.play();
+  setPausedUI();
+  // tell her once how to look around — and never again once she has
+  setTimeout(()=>{
+    if (watchTouched) return;
+    hint(TOUCH ? 'Pinch to zoom · drag to look around' : 'Scroll to zoom · drag to look around');
+    setTimeout(()=>{ if (!watchTouched) hint(null); }, 5200);
+  }, 4000);
+}
+let watchTouched = false;
+
+// The story's own camera work. Each shot takes over from the one before across a few seconds.
+//   k     how close: 0 frames the whole island, 1 frames just him
+//   f     where it aims, from the island's middle (0) to him (1) — or 'name' for the garland
+//   yaw   degrees around the island (+ = from the right, where the shrine stands)
+//   pitch degrees above the ground
+const SHOTS = [
+  {t: 0,    k:.00, f:.10,   yaw:-22, pitch:30},
+  {t: 3,    k:.28, f:.45,   yaw:-12, pitch:27},   // he sets off up the hill
+  {t: 16,   k:.50, f:.70,   yaw: 22, pitch:23},   // the shrine comes round on the right
+  {t: 23,   k:.80, f:.92,   yaw: 30, pitch:18},   // he kneels and lights the diya
+  {t: 35.5, k:.30, f:.45,   yaw:  4, pitch:27},   // walking on as dusk falls
+  {t: 52,   k:.52, f:.72,   yaw:-14, pitch:21},   // home in sight
+  {t: 58.5, k:.84, f:.92,   yaw: -4, pitch:13},   // he turns to her, kneels, offers the gurans
+  {t: 71.5, k:.58, f:'name',yaw:  0, pitch:11},   // her name blooms
+  {t: 82,   k:.20, f:.35,   yaw:  0, pitch:22}    // and the whole valley again
+];
+const SHOT_BLEND = 3.6;
+const W_CENTER = new THREE.Vector3(0, 0.20, -0.06);
+
+AFRAME.registerComponent('watchcam', {
+  init(){
+    this.u  = {yaw:0, pitch:0, zoom:1};    // where her fingers have put the camera
+    this.us = {yaw:0, pitch:0, zoom:1};    // ...smoothed
+    this.idle = 99;
+    this.tg = new THREE.Vector3(); this.aim = new THREE.Vector3();
+    this.v1 = new THREE.Vector3(); this.v2 = new THREE.Vector3();
+    this.boyP = new THREE.Vector3(); this.nameP = new THREE.Vector3();
+    this.pos = new THREE.Vector3(); this.m = new THREE.Matrix4(); this.up = new THREE.Vector3(0,1,0);
+    this.ready = false;
+    this.ptrs = new Map(); this.lastTap = 0;
+    this.recenterShown = false;
+
+    const st = $('stage');
+    const touch = ()=>{ this.idle = 0; if (!watchTouched){ watchTouched = true; hint(null); } };
+    this.onDown = e => {
+      touch();
+      this.ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY});
+      try{ st.setPointerCapture(e.pointerId); }catch(err){}
+      if (this.ptrs.size === 2) this.pinch0 = {d:this.spread(), z:this.u.zoom};
+      // a double tap (or double click) goes back to the story's own framing
+      if (this.ptrs.size === 1){
+        const now = performance.now();
+        if (now - this.lastTap < 300){ this.recenter(); this.lastTap = 0; } else this.lastTap = now;
+      }
+    };
+    this.onMove = e => {
+      const p = this.ptrs.get(e.pointerId); if (!p) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      p.x = e.clientX; p.y = e.clientY;
+      touch();
+      if (this.ptrs.size === 1){
+        const s = 220 / Math.max(320, Math.min(innerWidth, innerHeight));   // same feel on any screen
+        this.u.yaw   = clamp(this.u.yaw   - dx*s*0.9, -75, 75);
+        this.u.pitch = clamp(this.u.pitch + dy*s*0.6, -30, 45);
+      } else if (this.ptrs.size === 2 && this.pinch0){
+        this.u.zoom = clamp(this.pinch0.z * this.pinch0.d / Math.max(20, this.spread()), .3, 1.7);
+      }
+    };
+    this.onUp = e => {
+      this.ptrs.delete(e.pointerId);
+      if (this.ptrs.size < 2) this.pinch0 = null;
+    };
+    this.onWheel = e => {
+      e.preventDefault(); touch();
+      // ctrlKey = a trackpad pinch on a laptop, which arrives as small deltas
+      const k = e.ctrlKey ? 0.012 : 0.0014;
+      this.u.zoom = clamp(this.u.zoom * Math.exp(e.deltaY * k), .3, 1.7);
+    };
+    st.addEventListener('pointerdown', this.onDown);
+    st.addEventListener('pointermove', this.onMove);
+    st.addEventListener('pointerup', this.onUp);
+    st.addEventListener('pointercancel', this.onUp);
+    st.addEventListener('wheel', this.onWheel, {passive:false});
+  },
+
+  remove(){
+    const st = $('stage');
+    st.removeEventListener('pointerdown', this.onDown);
+    st.removeEventListener('pointermove', this.onMove);
+    st.removeEventListener('pointerup', this.onUp);
+    st.removeEventListener('pointercancel', this.onUp);
+    st.removeEventListener('wheel', this.onWheel);
+  },
+
+  spread(){
+    const [a, b] = [...this.ptrs.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  },
+
+  recenter(){ this.u.yaw = 0; this.u.pitch = 0; this.u.zoom = 1; this.idle = 99; },
+
+  // where a shot aims, given where he is and where her name will bloom
+  aimOf(s, out){
+    if (s.f === 'name') return out.copy(W_CENTER).lerp(this.nameP, 0.85);
+    return out.copy(W_CENTER).lerp(this.boyP, s.f);
+  },
+
+  // how far back the camera must stand for a subject of this size to fill the frame
+  distFor(k, cam){
+    const vh = cam.fov * Math.PI / 360, hh = Math.atan(Math.tan(vh) * cam.aspect);
+    // on a tall phone screen, let the island's outer edges crop a little rather than shrink it
+    const rh = lerp(0.66, 0.12, k) * (cam.aspect < 1 ? 0.84 : 1), rv = lerp(0.54, 0.10, k);
+    return Math.max(rh / Math.tan(hh), rv / Math.tan(vh)) + lerp(0.45, 0.04, k);
+  },
+
+  tick(time, dtms){
+    const d = dioramaComp(), cam = this.el.getObject3D('camera');
+    if (!d || !d.boy || !cam) return;
+    const dt = Math.min(dtms/1000, .1), t = P.t, ts = time/1000;
+
+    d.boy.root.getWorldPosition(this.boyP);
+    d.finale.fin.getWorldPosition(this.nameP);
+
+    // the story's shot right now, blended from the one before
+    let i = 0;
+    while (i < SHOTS.length-1 && t >= SHOTS[i+1].t) i++;
+    const cur = SHOTS[i], prev = SHOTS[Math.max(0, i-1)];
+    const w = i === 0 ? 1 : ramp(cur.t, cur.t + SHOT_BLEND, t);
+    this.aimOf(prev, this.v1); this.aimOf(cur, this.v2);
+    this.aim.copy(this.v1).lerp(this.v2, w);
+    const k = lerp(prev.k, cur.k, w);
+    const dist = this.distFor(k, cam);
+    // a slow breath of movement, so even a held shot is never quite still
+    const yaw = lerp(prev.yaw, cur.yaw, w) + Math.sin(ts*0.11)*4;
+    const pitch = lerp(prev.pitch, cur.pitch, w) + Math.sin(ts*0.07 + 1)*1.5;
+
+    if (!this.ready){
+      // open a little further out and higher, and drift in as the island grows out of nothing
+      this.ready = true;
+      this.tg.copy(this.aim); this.sd = dist*1.45; this.sy = yaw - 14; this.sp = pitch + 10;
+    }
+    const L = 1.4;
+    this.tg.lerp(this.aim, 1 - Math.exp(-L*dt));
+    this.sd = damp(this.sd, dist, L, dt);
+    this.sy = damp(this.sy, yaw, L, dt);
+    this.sp = damp(this.sp, pitch, L, dt);
+
+    // her hands, and the slow return to the story once she lets go
+    this.idle += dt;
+    if (this.idle > 8 && this.ptrs.size === 0){
+      this.u.yaw = damp(this.u.yaw, 0, .6, dt);
+      this.u.pitch = damp(this.u.pitch, 0, .6, dt);
+      this.u.zoom = damp(this.u.zoom, 1, .6, dt);
+    }
+    for (const key of ['yaw','pitch','zoom']) this.us[key] = damp(this.us[key], this.u[key], 12, dt);
+
+    const away = Math.abs(this.u.yaw) > 4 || Math.abs(this.u.pitch) > 4 || Math.abs(this.u.zoom - 1) > .08;
+    if (away !== this.recenterShown){ this.recenterShown = away; $('btnRecenter').hidden = !away; }
+
+    const Y = (this.sy + this.us.yaw) * Math.PI/180;
+    const Pt = clamp(this.sp + this.us.pitch, 5, 80) * Math.PI/180;
+    const r = Math.max(0.14, this.sd * this.us.zoom);
+    this.pos.set(Math.sin(Y)*Math.cos(Pt), Math.sin(Pt), Math.cos(Y)*Math.cos(Pt))
+      .multiplyScalar(r).add(this.tg);
+    // never let her slide the camera into a hillside
+    if (Math.abs(this.pos.x) < 0.52 && Math.abs(this.pos.z) < 0.61)
+      this.pos.y = Math.max(this.pos.y, H(this.pos.x, this.pos.z) + 0.04);
+
+    this.m.lookAt(this.pos, this.tg, this.up);
+    this.el.object3D.position.copy(this.pos);
+    this.el.object3D.quaternion.setFromRotationMatrix(this.m);
+  }
+});
+
+/* the sky behind the island: the same colour script the lights follow */
+let skyKey = '', starOp = '';
+function paintSky(dusk, starAmt){
+  const s = skyStops(dusk);
+  const key = s.join();
+  if (key !== skyKey){
+    skyKey = key;
+    // brightest at the horizon behind the range, falling away into the depth under the island
+    $('sky').style.background = 'linear-gradient(to bottom,' +
+      s[0] + ' 0%,' + s[1] + ' 20%,' + s[2] + ' 38%,' + s[3] + ' 50%,' + s[4] + ' 60%,' +
+      mix(s[3], s[1], .5) + ' 78%,' + mix(s[1], s[0], .6) + ' 100%)';
+  }
+  const op = (starAmt * 0.9).toFixed(2);
+  if (op !== starOp){ starOp = op; $('starfield').style.opacity = op; }
+}
+(function starTile(){
+  const c = document.createElement('canvas'); c.width = c.height = 420;
+  const x = c.getContext('2d'), R = rng(7);
+  for (let i=0;i<150;i++){
+    const r = 0.35 + Math.pow(R(), 3)*1.3;
+    x.fillStyle = 'rgba(255,248,228,' + (0.35 + R()*0.6).toFixed(2) + ')';
+    x.beginPath(); x.arc(R()*420, R()*420, r, 0, 6.2832); x.fill();
+  }
+  const f = $('starfield');
+  f.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+  f.style.backgroundSize = '420px 420px';
+  // stars only in the upper sky, thinning out toward the horizon
+  const m = 'linear-gradient(to bottom,#000 0%,#000 30%,transparent 58%)';
+  f.style.maskImage = m; f.style.webkitMaskImage = m;
+})();
+
+/* ?debug in Just watch: the old scrub bar, for retiming beats */
+function setupScrub(){
   $('demoBar').hidden = false;
   $('dSeek').max = CONFIG.beats.hold + 6;
-  $('dPlay').onclick = ()=> P.playing ? P.pause() : P.play();
+  $('dPlay').onclick = ()=>{ P.playing ? P.pause() : P.play(); setPausedUI(); };
   const sk = $('dSeek');
   sk.oninput = ()=>{ const d = dioramaComp(); if (d) d.seeking = true; P.seek(+sk.value); };
   const done = ()=>{ const d = dioramaComp(); if (d) d.seeking = false; };
   sk.onchange = done; sk.addEventListener('pointerup', done);
-  hint('demo · drag to spin · ' + BUILD);
-  P.play();
 }
 
 /* ---------- the opening card ---------- */
-function begin(){
-  $('gate').classList.add('gone');
-  $('hud').classList.add('on');
-  P.unlock();                 // has to happen inside the tap, or mobile never lets us play
-  resetStory();
-  setupDiag();
-  launch();
+// On a phone the letter is in her hands, so AR leads. On a laptop, holding a printed picture
+// up to a webcam is awkward — Just watch leads there.
+if (MOBILE) $('goAR').classList.add('primary');
+else {
+  $('goWatch').classList.add('primary');
+  $('choices').classList.add('desk');
+  $('arSub').textContent = 'hold the card up to your webcam';
 }
-$('begin').addEventListener('click', begin, {once:true});
 
-$('btnReplay').addEventListener('click', ()=>{ resetStory(); P.play(); });
+function hideScreen(id){
+  const el = $(id);
+  el.classList.add('gone');
+  setTimeout(()=>{ el.hidden = true; }, 1300);
+}
+// everything that has to happen inside her tap, or a phone never lets the song play
+function startStory(){
+  $('hud').classList.add('on');
+  P.unlock();
+  setupDiag();
+}
+$('goWatch').addEventListener('click', ()=>{ hideScreen('gate'); startStory(); startWatch(); }, {once:true});
+$('goAR').addEventListener('click', ()=>{ $('prep').hidden = false; hideScreen('gate'); }, {once:true});
+$('openCam').addEventListener('click', ()=>{
+  hideScreen('prep'); startStory(); resetStory(); launchAR();
+}, {once:true});
+$('prepWatch').addEventListener('click', ()=>{ hideScreen('prep'); startStory(); startWatch(); }, {once:true});
+$('scanAlt').addEventListener('click', toWatch);
+
+// iOS Safari ignores user-scalable=no; without this a pinch zooms the page, not the island
+document.addEventListener('gesturestart', e => e.preventDefault());
+
+$('btnReplay').addEventListener('click', ()=>{ resetStory(); P.play(); setPausedUI(); });
+$('btnRecenter').addEventListener('click', ()=>{
+  const c = document.querySelector('[watchcam]');
+  if (c) c.components.watchcam.recenter();
+});
+$('btnHome').addEventListener('click', ()=> location.reload());
+
+function setPausedUI(){
+  const paused = !P.playing;
+  $('icPause').style.display = paused ? 'none' : '';
+  $('icPlay').style.display = paused ? '' : 'none';
+  $('btnPause').title = paused ? 'Play' : 'Pause';
+  $('btnPause').setAttribute('aria-label', paused ? 'Play' : 'Pause');
+}
+$('btnPause').addEventListener('click', ()=>{ P.playing ? P.pause() : P.play(); setPausedUI(); });
+
+// put the phone down mid-song and the story waits for her
+let resumeOnShow = false;
+document.addEventListener('visibilitychange', ()=>{
+  if (!WATCH) return;
+  if (document.hidden){ resumeOnShow = P.playing; P.pause(); }
+  else if (resumeOnShow) P.play();
+  setPausedUI();
+});
 
 let muted = false;
 $('btnSound').addEventListener('click', ()=>{
@@ -2764,6 +3276,25 @@ function petalBurst(){
   }
 }
 
+// petals drifting up behind the opening card
+(function drift(){
+  if (REDUCED) return;
+  const box = $('drift'), R = rng(3);
+  for (let i=0;i<14;i++){
+    const p = document.createElement('i');
+    const w = 5 + R()*7;
+    if (i % 4 === 0) p.className = 'g';
+    p.style.left = (R()*100).toFixed(1) + '%';
+    p.style.width = w.toFixed(1) + 'px'; p.style.height = (w*0.8).toFixed(1) + 'px';
+    p.style.setProperty('--o', (0.25 + R()*0.4).toFixed(2));
+    p.style.setProperty('--dx', ((R()-0.5)*120).toFixed(0) + 'px');
+    p.style.setProperty('--r', ((R()-0.5)*720).toFixed(0) + 'deg');
+    p.style.animationDuration = (14 + R()*12).toFixed(1) + 's';
+    p.style.animationDelay = (-R()*24).toFixed(1) + 's';
+    box.appendChild(p);
+  }
+})();
+
 // marigolds on the opening card
 (function markMarigolds(){
   const mk = $('markPetals');
@@ -2798,7 +3329,7 @@ function setupDiag(){
     const r = scene && scene.renderer, v = document.querySelector('video');
     const d = dioramaComp(), st = $('stage'), c = scene && scene.camera;
     diagEl.textContent = [
-      'build ' + BUILD + (LITE ? ' lite' : ' full') + (DEMO ? ' demo' : '') +
+      'build ' + BUILD + (LITE ? ' lite' : ' full') + (WATCH ? ' watch' : '') +
         ' secure=' + isSecureContext,
       'scene=' + !!scene + ' renderer=' + !!r,
       'stage=' + (st ? st.clientWidth + 'x' + st.clientHeight : '-'),
