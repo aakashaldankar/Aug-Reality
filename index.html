@@ -354,7 +354,8 @@ const CONFIG = {
   herName: "Shalini",
 
   // The last line she reads, on screen just before the letter appears.
-  finalWords: "Timi bina mero bhawisya chainan.",
+  // finalWords: "Timi bina mero bhawisya chainan.",
+  finalWords: "Hareka thulo saano jitma khusi manaune sangai",
 
   // Drop your song next to this file and put the filename here.
   // e.g. "song.mp3". Leave "" to run the scene silently.
@@ -365,9 +366,9 @@ const CONFIG = {
 
   // ---- the letter at the end ----
   letter: {
-    lead:  "I walked every hill just to ask you this —",
-    ask:   "Will you go on a first date with me?",
-    np:    "पहिलो भेट?",
+    lead:  "I walked every hill just to ask you this",
+    ask:   "You. Me. A date?",
+    np:    "भेट?",
     yes:   "Yes",
     reply: "Then it's a promise."
   },
@@ -392,14 +393,26 @@ const CONFIG = {
   // Lyric cues — { t: seconds, line: "romanised", np: "Devanagari (optional)" }
   // Retune `t` to match wherever these land in your audio.
   lyrics: [
-    { t:  5.0, line: "Timro lagi ma sadhai hune chu" },
-    { t: 12.5, line: "Pahaad chadhne, nadi tarne, sansaar ghumne sangai" },
-    { t: 25.0, line: "Dakshinkali aako chu dhokera pyari", np: "दक्षिणकाली" },
-    { t: 32.0, line: "Timlai paune sapana bokera" },
-    { t: 41.0, line: "Timro ankha ko gahirai ma malai dubna deuna" },
-    { t: 49.0, line: "Timro sapana ma kahile kahi malai auna deuna" },
-    { t: 58.5, line: "Maayaale sajaaera eutaa ghar basaaune chu timilai" },
-    { t: 68.0, line: "Timraa sapanaa meraa sapanaa hunchhan eutai pyaari", np: "माया" }
+    { t: 1.0, line: "Timro lagi mai bhai-chhu baari piyari" },
+    { t: 5.0, line: "Aajai laideu maya ko hatkadi" },
+    { t: 9.5, line: "Timro lagi mai bhai-chhu baari piyari" },
+    { t: 14.5, line: "Aajai laideu maya ko hatkadi" },
+    { t: 18.5, line: "Dakshinkali aako chu dhokera piyari", np: "दक्षिणकाली" },
+    { t: 25.0, line: "Timlai paune sapana bokera" },
+    { t: 28.0, line: "Timro lagi mai bhai-chhu baari piyari" },
+    { t: 34.0, line: "Aajai laideu maya ko hatkadi" },
+    { t: 38.0, line: "Timro lagi mai bhai-chhu baari piyari" },
+    { t: 44.0, line: "Aajai laideu maya ko hatkadi" },
+    { t: 47.5, line: "Dakshinkali aako chu dhokera piyari", np: "दक्षिणकाली" },
+    { t: 52.0, line: "Timlai paune sapana bokera" },
+    // { t: 64.5, line: "Maayaale sajaaera eutaa ghar basaaune chu timilai" },
+    // { t: 69.0, line: "Jivanko har pal khusi dukha baatne chu timilai" },
+    { t: 65.0, line: "Sahasi chhau dayaalu chhau imaandaar chhau nyaari" },
+    { t: 68.0, line: "Bhidma chamkine tyo jhalak lai kaalale pani metna didina pyaari" },
+    { t: 84.0, line: "Timraa sapanaa meraa sapanaa hunchhan eutai pyaari"},
+    { t: 87.5, line: "Timro mehnat sangai garera kadam milaaunchhu baari"},
+    // { t: 91.0, line: "Timro ankha ko gahirai ma malai dubna deuna" },
+    // { t: 95.0, line: "Timro sapana ma kahile kahi malai auna deuna"},
   ],
 
   // Beat timings (seconds). Shift these to fit your song.
