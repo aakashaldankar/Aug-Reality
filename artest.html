@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AR test rig</title>
+<!--
+  Dev tool, not part of the card.
+
+  Phones have no devtools and "reload and squint" is a terrible debug loop. This feeds MindAR a
+  canvas stream of the printed card instead of a real camera, so the whole AR pipeline — real
+  tracking, real anchor matrices, real rendering — runs on a desktop where you can inspect it.
+
+      python3 -m http.server 8000
+      open http://localhost:8000/artest.html?debug
+
+  Anything after the ? is handed through to index.html, so ?debug, ?flat, ?tilt=90 all work.
+
+  Three traps, each of which cost a round trip the first time (LEARNINGS.md §3):
+    1. document.open() clears the frame-request list, so a requestAnimationFrame draw loop dies
+       and the MediaStream stalls. Draw with setInterval.
+    2. Autoplay is blocked without user activation, and MindAR sets the muted *attribute*, which
+       is not enough. Set video.muted = true as a property and keep calling play().
+    3. img.decode() sometimes never resolves in Chrome. Await onload instead.
+-->
+<style>
+  html,body{margin:0;height:100%;background:#0B0A14;color:#9f9;font:13px ui-monospace,monospace}
+  #boot{padding:14px}
+</style>
+</head>
+<body>
+<div id="boot">starting the fake camera…</div>
+<script>
+(async function(){
+  const note = m => { const b = document.getElementById("boot"); if (b) b.textContent = m; };
+
+  const img = new Image();
+  img.src = "mountains.png";
+  // onload, not decode(): decode() sometimes never resolves and hangs the page before it starts
+  await new Promise((res, rej) => { img.onload = res; img.onerror = () => rej(new Error("mountains.png")); });
+  note("card loaded " + img.width + "x" + img.height + " — streaming");
+
+  const c = document.createElement("canvas");
+  c.width = 1280; c.height = 720;
+  const x = c.getContext("2d");
+
+  // a little drift, so the tracker has something to track and jitter shows up honestly
+  let f = 0;
+  function draw(){
+    f++;
+    x.fillStyle = "#1A1E26"; x.fillRect(0, 0, c.width, c.height);
+    const s = 0.66 + Math.sin(f/220)*0.03;
+    const w = c.width*s, h = w*img.height/img.width;
+    x.save();
+    x.translate(c.width/2 + Math.sin(f/150)*40, c.height/2 + Math.cos(f/190)*22);
+    x.rotate(Math.sin(f/260)*0.05);
+    x.drawImage(img, -w/2, -h/2, w, h);
+    x.restore();
+  }
+  // setInterval, not rAF — see trap 1
+  setInterval(draw, 33);
+  draw();
+
+  const stream = c.captureStream(30);
+  navigator.mediaDevices.getUserMedia = () => Promise.resolve(stream);
+
+  // trap 2: keep every video MindAR creates muted *as a property* and actually playing
+  setInterval(() => {
+    document.querySelectorAll("video").forEach(v => {
+      v.muted = true;
+      if (v.paused) v.play().catch(() => {});
+    });
+  }, 300);
+
+  const qs = location.search.replace(/^\?/, "");
+  const html = await (await fetch("index.html" + (qs ? "?" + qs : ""))).text();
+  // same window, so the getUserMedia shim and the draw timer both survive
+  document.open(); document.write(html); document.close();
+})().catch(e => {
+  document.getElementById("boot").textContent = "rig failed: " + e.message;
+});
+</script>
+</body>
+</html>

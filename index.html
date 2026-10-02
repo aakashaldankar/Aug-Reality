@@ -1,0 +1,2807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<title>Timro Lagi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tiro+Devanagari+Hindi:ital@0;1&display=swap" rel="stylesheet">
+<!-- A-Frame + MindAR track the card; everything you see is a real three.js diorama standing
+     on it. (The 2D build drew SVG planes instead — same story, same palette, same beats.) -->
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+<style>
+  :root{
+    --ink:#2A1B2E;
+    --cream:#F6EEDD;
+    --gold:#E8B44A;
+    --marigold:#F0892B;
+    --guras:#CE2E4F;
+    --maroon:#7B1F32;
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  /* an id rule with display:flex outranks the UA's [hidden]{display:none} — say it louder */
+  [hidden]{display:none !important;}
+  html,body{height:100%;margin:0;padding:0;background:#0B0A14;overflow:hidden;}
+  body{
+    font-family:"Tiro Devanagari Hindi", Georgia, serif;
+    -webkit-font-smoothing:antialiased;
+    touch-action:manipulation;
+    user-select:none;-webkit-user-select:none;
+  }
+
+  /* MindAR measures sceneEl.parentNode — this div — to size the camera feed AND to derive the
+     AR camera's fov/aspect. An auto-height div measures 0 tall, which gives fov:0 and
+     aspect:Infinity, a NaN projection matrix, and a scene that renders perfectly nothing.
+     It MUST fill the viewport. (LEARNINGS.md §1 — this one rule cost four builds.) */
+  #stage{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;z-index:1;}
+  /* A-Frame's headset buttons have no business on a greeting card */
+  .a-enter-vr,.a-enter-ar,.a-enter-vr-button,.a-enter-ar-button,.a-orientation-modal{display:none !important;}
+
+  /* ---------- hint pill ---------- */
+  #hint{
+    position:fixed;z-index:6;
+    top:calc(14px + var(--safe-t));left:50%;transform:translateX(-50%);
+    max-width:min(90vw,340px);
+    padding:9px 17px;border-radius:999px;
+    background:rgba(20,10,26,.62);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid rgba(246,238,221,.16);
+    color:var(--cream);font-size:13.5px;letter-spacing:.015em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    box-shadow:0 6px 24px rgba(0,0,0,.4);
+  }
+  #hint.wrap{white-space:normal;border-radius:16px;text-align:center;line-height:1.5;}
+
+  /* ---------- lyric line ---------- */
+  #lyric-wrap{
+    position:fixed;left:0;right:0;
+    bottom:calc(7% + var(--safe-b));
+    z-index:3;pointer-events:none;
+    display:flex;justify-content:center;padding:0 7vw;
+  }
+  #lyric{
+    max-width:24ch;
+    text-align:center;
+    color:#FBF3E2;
+    font-size:clamp(17px,3.1vh,30px);
+    line-height:1.52;
+    letter-spacing:.012em;
+    text-shadow:0 2px 18px rgba(20,8,30,.85), 0 0 50px rgba(20,8,30,.6);
+    opacity:0;
+    transform:translateY(10px);
+    transition:opacity 1.1s ease, transform 1.1s cubic-bezier(.2,.7,.3,1);
+  }
+  #lyric.on{opacity:1;transform:translateY(0);}
+  #lyric .np{
+    display:block;
+    font-size:.74em;
+    color:#F0C877;
+    opacity:.78;
+    margin-top:.42em;
+    letter-spacing:.02em;
+  }
+
+  /* ---------- opening card ---------- */
+  #gate{
+    position:fixed;inset:0;z-index:9;
+    background:
+      radial-gradient(120% 90% at 50% 38%, #3A1F3C 0%, #1A0E20 55%, #0B0A14 100%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:2.4rem;padding:calc(6vh + var(--safe-t)) 8vw calc(6vh + var(--safe-b));
+    text-align:center;
+    transition:opacity 1.5s ease;
+  }
+  #gate.gone{opacity:0;pointer-events:none;}
+
+  #gate .mark{width:min(140px,26vw);height:auto;opacity:.95;}
+
+  #gate h1{
+    margin:0;
+    font-weight:400;
+    font-size:clamp(30px,6.2vh,58px);
+    line-height:1.14;
+    color:var(--cream);
+    letter-spacing:.005em;
+  }
+  #gate h1 em{
+    display:block;font-style:italic;
+    color:var(--gold);
+    font-size:.56em;
+    margin-top:.5em;
+    letter-spacing:.05em;
+    opacity:.9;
+  }
+  #gate p{
+    margin:0;max-width:30ch;
+    color:#C9B4C6;font-size:clamp(14px,2.1vh,18px);line-height:1.6;
+  }
+  #begin{
+    font-family:inherit;
+    cursor:pointer;
+    border:1px solid rgba(232,180,74,.5);
+    background:rgba(232,180,74,.07);
+    color:var(--gold);
+    font-size:clamp(15px,2.3vh,19px);
+    letter-spacing:.09em;
+    padding:.95em 2.6em;
+    border-radius:999px;
+    transition:background .35s ease, transform .35s ease, border-color .35s ease;
+  }
+  #begin:hover,#begin:focus-visible{
+    background:rgba(232,180,74,.16);
+    border-color:rgba(232,180,74,.85);
+    transform:translateY(-2px);
+    outline:none;
+  }
+  #begin:focus-visible{box-shadow:0 0 0 3px rgba(232,180,74,.35);}
+
+  /* ---------- controls ---------- */
+  #hud{
+    position:fixed;z-index:5;
+    top:calc(14px + var(--safe-t));right:14px;
+    display:flex;gap:9px;opacity:0;transition:opacity .8s ease;
+  }
+  #hud.on{opacity:.55;}
+  #hud:hover{opacity:1;}
+  .btn{
+    width:40px;height:40px;border-radius:50%;cursor:pointer;
+    border:1px solid rgba(246,238,221,.25);
+    background:rgba(20,10,26,.42);
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+    color:var(--cream);
+    display:grid;place-items:center;padding:0;
+    transition:background .3s ease,border-color .3s ease;
+  }
+  .btn:hover,.btn:focus-visible{background:rgba(20,10,26,.75);border-color:rgba(246,238,221,.6);outline:none;}
+  .btn svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+  .btn.off{opacity:.45;}
+
+  /* ---------- end card ---------- */
+  /* sits where the lyrics sat, so it never lands on top of the diorama */
+  #endcard{
+    position:fixed;inset:0;z-index:4;
+    display:flex;align-items:flex-end;justify-content:center;
+    pointer-events:none;opacity:0;transition:opacity 2.2s ease;
+  }
+  #endcard.on{opacity:1;}
+  #endcard .inner{text-align:center;padding:0 10vw calc(11% + var(--safe-b));}
+  #endcard .q{
+    color:#FBF3E2;font-size:clamp(20px,3.6vh,36px);line-height:1.45;
+    text-shadow:0 2px 24px rgba(20,8,30,.9);
+  }
+
+  /* ---------- the letter ---------- */
+  #love{
+    position:fixed;z-index:6;
+    right:16px;bottom:calc(13% + var(--safe-b));
+    width:62px;height:62px;border-radius:50%;cursor:pointer;
+    border:1px solid rgba(232,180,74,.55);
+    background:radial-gradient(120% 120% at 34% 26%,rgba(240,137,43,.3),rgba(20,10,26,.72));
+    backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);
+    color:var(--gold);
+    display:grid;place-items:center;padding:0;
+    box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 26px rgba(232,180,74,.22);
+    opacity:0;transform:scale(.72);pointer-events:none;
+    transition:opacity .9s ease,transform .9s cubic-bezier(.2,.8,.2,1);
+  }
+  #love.on{opacity:1;transform:scale(1);pointer-events:auto;animation:breathe 2.6s ease-in-out infinite;}
+  #love svg{width:27px;height:27px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;}
+  @keyframes breathe{
+    0%,100%{box-shadow:0 10px 30px rgba(0,0,0,.45),0 0 22px rgba(232,180,74,.2);}
+    50%    {box-shadow:0 12px 36px rgba(0,0,0,.5), 0 0 40px rgba(232,180,74,.46);}
+  }
+
+  /* ---------- the question ---------- */
+  #final{
+    position:fixed;inset:0;z-index:10;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:1.9rem;padding:calc(7vh + var(--safe-t)) 9vw calc(7vh + var(--safe-b));
+    text-align:center;
+    background:
+      radial-gradient(118% 88% at 50% 34%,rgba(123,31,50,.78) 0%,rgba(26,14,32,.93) 58%,rgba(11,10,20,.97) 100%);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+    animation:lift 1.1s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes lift{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  /* while she is reading the question, nothing else should be competing for the eye */
+  body.asking #endcard,body.asking #lyric-wrap,body.asking #hud{opacity:0;transition:opacity .5s ease;}
+  #finalLead{
+    margin:0;max-width:22ch;
+    color:#C9B4C6;font-size:clamp(14px,2.1vh,18px);line-height:1.62;font-style:italic;
+  }
+  #finalQ{
+    margin:0;max-width:17ch;
+    color:var(--cream);font-size:clamp(27px,5.4vh,50px);line-height:1.22;
+    text-shadow:0 2px 26px rgba(20,8,30,.9),0 0 60px rgba(240,137,43,.26);
+  }
+  #finalNp{
+    display:block;margin-top:.55em;
+    font-size:.42em;color:#F0C877;opacity:.8;letter-spacing:.03em;
+  }
+  #yesBtn{
+    font-family:inherit;cursor:pointer;
+    border:1px solid rgba(232,180,74,.6);
+    background:rgba(232,180,74,.1);
+    color:var(--gold);
+    font-size:clamp(16px,2.5vh,21px);letter-spacing:.1em;
+    padding:.92em 3.1em;border-radius:999px;
+    transition:background .35s ease,transform .35s ease,border-color .35s ease;
+  }
+  #yesBtn:hover,#yesBtn:focus-visible{
+    background:rgba(232,180,74,.2);border-color:rgba(232,180,74,.95);
+    transform:translateY(-2px);outline:none;
+  }
+  #yesBtn:active{transform:scale(.96);}
+  #finalReply{
+    min-height:1.6em;
+    color:#F0C877;font-size:clamp(15px,2.3vh,20px);font-style:italic;
+    opacity:0;transition:opacity 1s ease;
+  }
+  #finalReply.on{opacity:1;}
+  #closeBtn{
+    font-family:inherit;cursor:pointer;background:none;border:0;
+    color:#C9B4C6;opacity:.6;font-size:13px;letter-spacing:.05em;
+    text-decoration:underline;text-underline-offset:4px;padding:6px;
+  }
+  .petal{
+    position:fixed;top:-7vh;z-index:11;pointer-events:none;
+    animation:fall linear forwards;
+  }
+  .petal svg{display:block;width:100%;height:100%;overflow:visible;}
+  @keyframes fall{
+    to{transform:translate3d(var(--dx),116vh,0) rotate(var(--rot));opacity:.1;}
+  }
+
+  #diag{
+    position:fixed;left:6px;top:6px;z-index:999;
+    background:rgba(0,0,0,.78);color:#9f9;
+    font:11px/1.35 ui-monospace,monospace;
+    padding:6px 8px;border-radius:6px;max-width:76vw;
+    white-space:pre;pointer-events:none;
+  }
+
+  /* ---------- ?demo scrub bar ---------- */
+  #demoBar{
+    position:fixed;left:0;right:0;bottom:0;z-index:8;
+    display:flex;gap:10px;align-items:center;padding:9px 12px;
+    background:rgba(11,10,20,.72);color:var(--cream);
+    font:12px/1.3 ui-monospace,monospace;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  }
+  #demoBar input{flex:1;}
+  #demoBar button{
+    font:inherit;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;
+    background:var(--gold);color:#2A1B2E;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    #lyric{transition-duration:.01ms;}
+    #love.on{animation:none;}
+  }
+</style>
+</head>
+<body>
+
+<!-- MindAR's scene lives here. It must fill the viewport — see the #stage rule above. -->
+<div id="stage"></div>
+
+<div id="lyric-wrap"><div id="lyric"></div></div>
+
+<div id="endcard"><div class="inner"><div class="q" id="endq"></div></div></div>
+
+<div id="hud">
+  <button class="btn" id="btnSound" title="Sound" aria-label="Toggle sound">
+    <svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="wave1" d="M16.5 8.5a5 5 0 0 1 0 7"/><path id="wave2" d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+  </button>
+  <button class="btn" id="btnReplay" title="Play again" aria-label="Play again">
+    <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 4v4h-4"/></svg>
+  </button>
+</div>
+
+<div id="hint" hidden></div>
+
+<!-- the letter, folded shut until the end of the song -->
+<button id="love" aria-label="Open the letter">
+  <svg viewBox="0 0 24 24">
+    <rect x="2.4" y="5.4" width="19.2" height="13.2" rx="1.8"/>
+    <path d="M2.4 7 12 13.4 21.6 7"/>
+    <path d="M2.8 18.2 9.3 12M21.2 18.2 14.7 12" opacity=".55"/>
+  </svg>
+</button>
+
+<div id="final" hidden>
+  <p id="finalLead"></p>
+  <h2 id="finalQ"></h2>
+  <button id="yesBtn"></button>
+  <div id="finalReply"></div>
+  <button id="closeBtn">back to the hills</button>
+</div>
+
+<div id="demoBar" hidden>
+  <button id="dPlay">play / pause</button>
+  <input id="dSeek" type="range" min="0" step="0.1" value="0">
+  <span id="dTime">0.0s</span>
+</div>
+
+<div id="gate">
+  <svg class="mark" viewBox="0 0 120 120" aria-hidden="true">
+    <g fill="none" stroke="#E8B44A" stroke-width="1.5" stroke-linecap="round">
+      <path d="M8 86 L34 52 L46 66 L62 38 L78 62 L92 46 L112 76" stroke-opacity=".55"/>
+      <path d="M8 86 H112" stroke-opacity=".3"/>
+    </g>
+    <g id="markPetals" fill="#E8B44A" opacity=".85"></g>
+  </svg>
+  <h1>Timro Lagi<em>तिम्रो लागि</em></h1>
+  <p id="gateNote">Tap, and hold your camera over the card.</p>
+  <button id="begin">Begin</button>
+</div>
+
+<audio id="song" preload="auto"></audio>
+
+<script>
+/* ============================================================
+   ✦ EVERYTHING YOU'LL WANT TO EDIT LIVES IN THIS ONE BLOCK ✦
+   (unchanged from the 2D build, except the `ar` section, which
+    now describes a solid diorama instead of stacked planes)
+   ============================================================ */
+const CONFIG = {
+
+  // Her name. Appears in gold inside the marigold garland at the end.
+  herName: "Shalini",
+
+  // The last line she reads, on screen just before the letter appears.
+  finalWords: "Timi bina mero bhawisya chainan.",
+
+  // Drop your song next to this file and put the filename here.
+  // e.g. "song.mp3". Leave "" to run the scene silently.
+  audioFile: "music.m4a",
+
+  // Seconds into the song that the animation should start from.
+  audioOffset: 0,
+
+  // ---- the letter at the end ----
+  letter: {
+    lead:  "I walked every hill just to ask you this —",
+    ask:   "Will you go on a first date with me?",
+    np:    "पहिलो भेट?",
+    yes:   "Yes",
+    reply: "Then it's a promise."
+  },
+
+  // ---- how the diorama sits on the card ----
+  // Inside the anchor 1 unit = the card's width, so everything here is in card widths.
+  ar: {
+    target: "targets.mind",  // compiled from the card image (mountains.png)
+    scale:  0.95,            // how wide the island is, in card widths
+    // The angle you look DOWN on the island at. A diorama standing straight out of the card
+    // (90) is only flattering when the card is lying flat; held up, you stare down its own
+    // "up" axis and get a map. So it leans to meet you — see updateTilt.
+    tilt:     38,
+    tiltAuto: true,
+    // How tall the landform stands off the card. 1.0 is a dramatic alpine spire; lower makes
+    // a calmer, wider diorama. Nothing else needs touching — hills, peaks and shoulders all
+    // scale together, and everything standing on them re-seats itself.
+    relief:   0.82,
+    lift:     0.0            // extra float above the card face
+  },
+
+  // Lyric cues — { t: seconds, line: "romanised", np: "Devanagari (optional)" }
+  // Retune `t` to match wherever these land in your audio.
+  lyrics: [
+    { t:  5.0, line: "Timro lagi ma sadhai hune chu" },
+    { t: 12.5, line: "Pahaad chadhne, nadi tarne, sansaar ghumne sangai" },
+    { t: 25.0, line: "Dakshinkali aako chu dhokera pyari", np: "दक्षिणकाली" },
+    { t: 32.0, line: "Timlai paune sapana bokera" },
+    { t: 41.0, line: "Timro ankha ko gahirai ma malai dubna deuna" },
+    { t: 49.0, line: "Timro sapana ma kahile kahi malai auna deuna" },
+    { t: 58.5, line: "Maayaale sajaaera eutaa ghar basaaune chu timilai" },
+    { t: 68.0, line: "Timraa sapanaa meraa sapanaa hunchhan eutai pyaari", np: "माया" }
+  ],
+
+  // Beat timings (seconds). Shift these to fit your song.
+  beats: {
+    fadeIn:      0.0,
+    walkOne:     2.0,   // starts climbing
+    reachTemple: 21.0,  // arrives at Dakshinkali
+    kneelDown:   24.0,  // kneels, lights the diya
+    riseUp:      34.0,  // stands, bows
+    walkTwo:     38.0,  // climbs on; dusk falls, fireflies rise
+    reachHome:   56.0,  // arrives at the doorstep
+    houseLights: 57.0,  // a second later, every window lights at once
+    turnAround:  58.5,  // turns to face her
+    kneelOffer:  60.5,  // one knee, holds out the lali gurans
+    garland:     72.0,  // marigolds bloom into her name
+    finalLine:   80.0,
+    hold:        92.0
+  }
+};
+</script>
+<script>
+/* ============================================================
+   build id + escape hatches
+
+   Every one of these exists so a hypothesis can be tested in seconds by someone holding a
+   phone, with no rebuild. Put the build id on screen: GitHub Pages plus phone caching makes
+   "is this even the new version?" a question worth answering at a glance.
+   ============================================================ */
+const BUILD = 'hd1';
+const QS    = new URLSearchParams(location.search);
+const DEMO  = QS.has('demo');          // no camera: orbit the diorama on a desktop
+const DEBUG = QS.has('debug');         // on-screen diagnostics
+// ?lite strips shadows, the env map and the small scatter. The perf escape hatch.
+const LITE  = QS.has('lite') && !QS.has('full');
+const TILT_FIXED = QS.has('tilt') ? +QS.get('tilt') : null;
+
+const THREE = AFRAME.THREE;
+const MOBILE = (AFRAME.utils.device && AFRAME.utils.device.isMobile && AFRAME.utils.device.isMobile())
+  || (window.matchMedia && matchMedia('(pointer:coarse)').matches && Math.min(screen.width, screen.height) < 820);
+const REDUCED = matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* ============================================================
+   small helpers
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+// Phones have no devtools. Surface anything uncaught on screen so it can be read out loud.
+function showDiag(msg){
+  try{
+    const h = $("hint"); if (!h) return;
+    h.textContent = "⚠ " + msg; h.classList.add("wrap"); h.hidden = false;
+  }catch(e){}
+}
+addEventListener("error", e =>
+  showDiag((e.message||"script error") + " @" + ((e.filename||"").split("/").pop()) + ":" + e.lineno));
+addEventListener("unhandledrejection", e =>
+  showDiag("promise: " + ((e.reason && e.reason.message) || e.reason || "rejected")));
+
+const clamp = (v,a,b) => v < a ? a : v > b ? b : v;
+const lerp  = (a,b,t) => a + (b-a)*t;
+const inv   = (a,b,v) => clamp((v-a)/(b-a), 0, 1);
+// smoothstep-eased progress between two times
+const ramp  = (a,b,v) => { const t = inv(a,b,v); return t*t*(3-2*t); };
+// walking progress: a steady pace with a short speed-up and slow-down at each end
+// (smoothstep spends its last seconds crawling, which reads as stepping on the spot)
+const stroll = (a,b,v,e=1.2) => {
+  const T = b-a, s = clamp(v-a, 0, T); e = Math.min(e, T/2);
+  const vm = 1/(T-e);
+  if (s < e)   return 0.5*vm*s*s/e;
+  if (s > T-e) return 1 - 0.5*vm*(T-s)*(T-s)/e;
+  return vm*(s - e/2);
+};
+const easeOutBack = t => { t=clamp(t,0,1); const c=1.70158+1; return 1 + c*Math.pow(t-1,3) + 1.70158*Math.pow(t-1,2); };
+const easeOutExpo = t => { t=clamp(t,0,1); return t>=1 ? 1 : 1-Math.pow(2,-10*t); };
+// gentle overshoot/settle spring
+const spring = t => { t=clamp(t,0,1); return 1 - Math.cos(t*Math.PI*1.5)*Math.exp(-3*t); };
+// frame-rate independent exponential smoothing
+const damp = (a,b,l,dt) => lerp(a, b, 1 - Math.exp(-l*dt));
+const shortAngle = (from, to) => Math.atan2(Math.sin(to-from), Math.cos(to-from));
+
+// deterministic pseudo-random so the scene looks identical every run
+let _seed = 20260214;
+const rnd = () => { _seed = (_seed*1664525 + 1013904223) % 4294967296; return _seed/4294967296; };
+const rr  = (a,b) => a + rnd()*(b-a);
+function rng(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed>>>15, 1|seed);
+    t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+    return ((t ^ t>>>14) >>> 0) / 4294967296;
+  };
+}
+
+const mix = (c1, c2, t) => {
+  const p = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const [r1,g1,b1]=p(c1), [r2,g2,b2]=p(c2);
+  const h2 = v => Math.round(v).toString(16).padStart(2,"0");
+  return "#"+h2(lerp(r1,r2,t))+h2(lerp(g1,g2,t))+h2(lerp(b1,b2,t));
+};
+
+/* ============================================================
+   the clock
+
+   The scene used to run off performance.now(), which drifts away from the song within a
+   minute. Drive it from the audio element's own currentTime instead, and fall back to a
+   silent counter if the file is missing so the story still plays.
+   ============================================================ */
+const P = {
+  audio: $("song"), audioOK:false, playing:false, clock:0, t:0, _live:false,
+  init(){
+    const a = this.audio;
+    if (!CONFIG.audioFile) return;
+    a.preload = "auto"; a.loop = false; a.src = CONFIG.audioFile;
+    a.addEventListener("canplay", ()=>{
+      if (this.audioOK) return;
+      this.audioOK = true;
+      try{ a.currentTime = this.clock + (CONFIG.audioOffset||0); }catch(e){}
+      if (this.playing) a.play().catch(()=>{});
+    });
+    a.addEventListener("error", ()=>{
+      this.audioOK = false;
+      console.warn("song not found — running on a silent clock");
+    });
+  },
+  // called inside the Begin tap, so a mobile browser will let us play audio later on
+  unlock(){
+    const a = this.audio; if (!CONFIG.audioFile) return;
+    const p = a.play();
+    if (p && p.then) p.then(()=>{
+      if (!this.playing){ a.pause(); try{ a.currentTime = CONFIG.audioOffset||0; }catch(e){} }
+    }).catch(()=>{});
+  },
+  play(){ this.playing = true; if (this.audioOK) this.audio.play().catch(()=>{}); },
+  pause(){ this.playing = false; if (this.audioOK) this.audio.pause(); },
+  seek(s){
+    this.clock = s; this.t = s; this._live = false;
+    if (this.audioOK){ try{ this.audio.currentTime = s + (CONFIG.audioOffset||0); }catch(e){} }
+  },
+  update(dt){
+    // 'canplay' fired is not the same as the song actually playing. If the file never finishes
+    // buffering, or the browser quietly refuses to start it, currentTime sits at 0 for ever —
+    // and a clock that never advances means a blank card and a story that never begins. So run
+    // the silent counter until the audio is demonstrably producing time, then hand over to it.
+    const a = this.audio;
+    const live = this.audioOK && !a.paused && a.currentTime > 0;
+    if (live){
+      if (!this._live){                   // the first frame the song actually speaks
+        this._live = true;
+        const want = this.clock + (CONFIG.audioOffset||0);
+        // don't let the picture jump back to wherever the audio happened to start
+        if (Math.abs(a.currentTime - want) > 0.35){ try{ a.currentTime = want; }catch(e){} }
+      }
+      this.t = a.currentTime - (CONFIG.audioOffset||0); this.clock = this.t;
+    } else {
+      this._live = false;
+      if (this.playing){ this.clock += dt; this.t = this.clock; }
+    }
+  }
+};
+P.init();
+
+/* ============================================================
+   lyrics
+   ============================================================ */
+let lyricIdx = -1;
+let lyricGen = 0;
+function updateLyrics(t){
+  let want = -1;
+  for (let i=0;i<CONFIG.lyrics.length;i++){
+    const L = CONFIG.lyrics[i];
+    const nxt = CONFIG.lyrics[i+1];
+    const end = Math.min(L.t + 6.4, nxt ? nxt.t - 0.5 : 1e9);
+    if (t >= L.t && t < end) want = i;
+  }
+  if (want === lyricIdx) return;
+  lyricIdx = want;
+  const box = $("lyric");
+  // The swap waits 240ms for the old line to fade out. Stamp it, so a pending swap that has
+  // been overtaken — by the next line, or by the last one ending — can't put a dead lyric back
+  // on screen after it should be gone.
+  const gen = ++lyricGen;
+  if (want < 0){ box.classList.remove("on"); return; }
+  const L = CONFIG.lyrics[want];
+  box.classList.remove("on");
+  setTimeout(()=>{
+    if (gen !== lyricGen) return;
+    box.innerHTML = L.line + (L.np ? '<span class="np">' + L.np + '</span>' : "");
+    box.classList.add("on");
+  }, 240);
+}
+
+/* ---------- the hint pill ---------- */
+function hint(msg, wrap){
+  const h = $("hint");
+  if (!msg){ h.hidden = true; return; }
+  h.textContent = msg;
+  h.classList.toggle("wrap", !!wrap);
+  h.style.pointerEvents = "none";
+  h.onclick = null;
+  h.hidden = false;
+}
+
+/* ============================================================
+   the palette — lifted straight from the 2D build so the two
+   versions are the same picture, differently made
+   ============================================================ */
+const PAL = {
+  skyDay : ["#2E3A6B","#7A5A86","#D9815E","#F0A861","#FBD79A"],
+  skyDusk: ["#0B1030","#241A4E","#5E2E63","#9C3F58","#D4733F"],
+  skyNite: ["#05060F","#0D0F2C","#1E1540","#3A2050","#5E2E45"],
+
+  snowLit:"#FBF8F2", snowShade:"#A7B1C8",
+  rockLit:"#A8644A", rockMid:"#7C4434", rockDark:"#55302A",
+  hillFar:"#8C5A4C", hillFar2:"#5E3A36",
+  hillMid:"#4E5A62", hillMid2:"#36404F",
+  valley:"#2F4038",
+  grassLit:"#6E8C3E", grass:"#5E7540", grassMid:"#485C33", grassDark:"#243324",
+  terrA:"#6E8352", terrB:"#55684A",
+  trail:"#D9B98A", trailDark:"#A88659", trailLip:"#FFD79C",
+  earth:"#7A5236", earthDeep:"#3B2A20",
+  pineFar:"#3F3360", pineMid:"#2C3A3A", pineNear:"#1F2E2C",
+  riverHi:"#FFD9A0", riverMid:"#E08C62", riverLo:"#6E5A7E",
+
+  gold:"#E8B44A", goldLit:"#FFE9A8", goldDeep:"#9C6516",
+  marigold:"#F0892B", marigoldPale:"#F6B23A",
+  guras:"#CE2E4F", gurasHi:"#F0566F", gurasCore:"#FFE1A8",
+  maroon:"#7B1F32", maroonHi:"#A33048",
+
+  cloth:"#D3DEEA", clothShade:"#B4C4D6", pant:"#C9D6E3",
+  coat:"#2F5089", coatDark:"#223C6C", shoe:"#6E4024",
+  skin:"#E8B590", hair:"#1E1826", topi:"#F0E4CC",
+  wood:"#6E4A33", woodDark:"#4A3A2C", stone:"#9A8880", slate:"#5A5464",
+  mud:"#9C4A2E", mudLit:"#C06038", wash:"#EFE3CE"
+};
+const FLAG_COLS = ["#2F6FD0","#F4F2EC","#D23B33","#2F9B57","#F2C235"];
+
+/* ============================================================
+   materials + textures
+   ============================================================ */
+// mat = faceted (stylised low-poly), smat = smooth (organic)
+const mat  = (c,o)=>new THREE.MeshStandardMaterial(Object.assign(
+  {color:c, flatShading:true,  roughness:.88, metalness:0, envMapIntensity:.4}, o||{}));
+const smat = (c,o)=>new THREE.MeshStandardMaterial(Object.assign(
+  {color:c, flatShading:false, roughness:.62, metalness:0, envMapIntensity:.55}, o||{}));
+const srgb = t => { if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
+let MAXANISO = 4;
+
+// soft round glow sprite, shared by every particle and fake-bloom halo
+let GLOW = null;
+function glowTex(){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');  g.addColorStop(.25,'rgba(255,255,255,.7)');
+  g.addColorStop(.55,'rgba(255,255,255,.22)'); g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle = g; x.fillRect(0,0,128,128);
+  const t = srgb(new THREE.CanvasTexture(c)); t.anisotropy = MAXANISO; return t;
+}
+function smokeTex(){
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const x = c.getContext('2d');
+  const g = x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,.9)'); g.addColorStop(.5,'rgba(233,214,196,.4)');
+  g.addColorStop(1,'rgba(233,214,196,0)');
+  x.fillStyle = g; x.fillRect(0,0,128,128);
+  return srgb(new THREE.CanvasTexture(c));
+}
+// a lungta: five stripes of block-printed mantra, tinted per flag by material.color
+function flagTex(){
+  const c = document.createElement('canvas'); c.width = 64; c.height = 48;
+  const x = c.getContext('2d');
+  x.fillStyle = '#ffffff'; x.fillRect(0,0,64,48);
+  x.fillStyle = 'rgba(36,26,46,.34)';
+  for (let r=0;r<3;r++) x.fillRect(10, 11+r*11, 44, 3.4);
+  x.fillStyle = 'rgba(26,16,38,.14)'; x.fillRect(0,0,64,48);
+  const t = srgb(new THREE.CanvasTexture(c)); t.anisotropy = MAXANISO; return t;
+}
+// a single marigold petal, for the ones that fall at the end
+function petalTex(){
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d');
+  x.translate(32,32);
+  const g = x.createRadialGradient(-6,-8,2,0,0,30);
+  g.addColorStop(0,'rgba(255,240,200,1)'); g.addColorStop(.45,'rgba(255,255,255,.95)');
+  g.addColorStop(1,'rgba(255,255,255,.72)');
+  x.fillStyle = g;
+  x.beginPath();
+  x.moveTo(-26,0); x.bezierCurveTo(-18,-20, 18,-22, 27,-2);
+  x.bezierCurveTo(18,20, -16,19, -26,0); x.closePath(); x.fill();
+  const t = srgb(new THREE.CanvasTexture(c)); t.anisotropy = MAXANISO; return t;
+}
+// additive bloom halo (fake bloom — cheap, and safe over a camera feed)
+function halo(color, size){
+  const m = new THREE.SpriteMaterial({map:GLOW, color:new THREE.Color(color), transparent:true,
+    opacity:0, depthWrite:false, blending:THREE.AdditiveBlending, toneMapped:false});
+  const s = new THREE.Sprite(m); s.scale.setScalar(size); return s;
+}
+
+// image-based lighting: a small procedural golden-hour sky -> PMREM
+function makeEnv(renderer){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 256;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,   PAL.skyDay[0]);
+  g.addColorStop(.30, PAL.skyDay[1]);
+  g.addColorStop(.52, PAL.skyDay[2]);
+  g.addColorStop(.66, PAL.skyDay[3]);
+  g.addColorStop(.74, PAL.skyDay[4]);
+  g.addColorStop(1,   '#4A3328');
+  x.fillStyle = g; x.fillRect(0,0,512,256);
+  const sg = x.createRadialGradient(360,86,0,360,86,78);
+  sg.addColorStop(0,'rgba(255,252,238,1)'); sg.addColorStop(1,'rgba(255,240,196,0)');
+  x.fillStyle = sg; x.fillRect(270,0,180,170);
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const rt = pmrem.fromEquirectangular(tex);
+  tex.dispose(); pmrem.dispose();
+  return rt.texture;
+}
+
+// her name, drawn with the 2D build's gold gradient and glow
+function makeNameTex(name){
+  const c = document.createElement('canvas'); c.width = 1536; c.height = 512;
+  const x = c.getContext('2d');
+  const tex = srgb(new THREE.CanvasTexture(c)); tex.anisotropy = MAXANISO;
+  const draw = ()=>{
+    x.clearRect(0,0,c.width,c.height);
+    const fam = "'Tiro Devanagari Hindi', Georgia, serif";
+    let size = 300;
+    x.font = 'italic ' + size + 'px ' + fam;
+    while (x.measureText(name).width > c.width*0.84 && size > 70){
+      size -= 12; x.font = 'italic ' + size + 'px ' + fam;
+    }
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    // soft outer bloom, twice over
+    x.shadowColor = 'rgba(240,137,43,.95)'; x.shadowBlur = 78;
+    x.fillStyle = '#FFF1C6'; x.fillText(name, c.width/2, c.height/2);
+    x.shadowBlur = 36; x.fillText(name, c.width/2, c.height/2);
+    // crisp core, in the nameGold gradient
+    x.shadowBlur = 0;
+    const grd = x.createLinearGradient(0, c.height*0.26, 0, c.height*0.74);
+    grd.addColorStop(0,'#FFF1C6'); grd.addColorStop(.5,'#F3C25C'); grd.addColorStop(1,'#D18A2A');
+    x.fillStyle = grd; x.fillText(name, c.width/2, c.height/2);
+    tex.needsUpdate = true;
+  };
+  draw();
+  if (document.fonts && document.fonts.load){
+    document.fonts.load("italic 90px 'Tiro Devanagari Hindi'").then(draw).catch(()=>{});
+  }
+  return tex;
+}
+
+// the shrine's nameplate — दक्षिणकाली, in gold, as it is on the 2D card
+function makeLabelTex(text, color){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+  const x = c.getContext('2d');
+  const tex = srgb(new THREE.CanvasTexture(c)); tex.anisotropy = MAXANISO;
+  const draw = ()=>{
+    x.clearRect(0,0,c.width,c.height);
+    x.font = "76px 'Tiro Devanagari Hindi', Georgia, serif";
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.shadowColor = 'rgba(0,0,0,.65)'; x.shadowBlur = 16;
+    x.fillStyle = color; x.fillText(text, c.width/2, c.height/2 + 4);
+    tex.needsUpdate = true;
+  };
+  draw();
+  if (document.fonts && document.fonts.load){
+    document.fonts.load("70px 'Tiro Devanagari Hindi'").then(draw).catch(()=>{});
+  }
+  return tex;
+}
+
+// the flourish that draws itself under her name
+function makeRuleTex(){
+  const c = document.createElement('canvas'); c.width = 512; c.height = 64;
+  const x = c.getContext('2d');
+  x.strokeStyle = '#F0C877'; x.lineWidth = 7; x.lineCap = 'round';
+  x.shadowColor = 'rgba(240,200,120,.8)'; x.shadowBlur = 14;
+  x.beginPath(); x.moveTo(16,22); x.bezierCurveTo(170,46, 342,46, 496,22); x.stroke();
+  return srgb(new THREE.CanvasTexture(c));
+}
+
+/* ============================================================
+   merging — one draw call instead of three hundred
+
+   A-Frame doesn't ship BufferGeometryUtils, and a phone will not thank you for 260 separate
+   grass tufts. This pours many little geometries into one buffer, baking a transform and a
+   colour into each.
+   ============================================================ */
+function Merger(){ this.pos = []; this.col = []; }
+Merger.prototype.add = function(geo, matrix, color){
+  const g = geo.index ? geo.toNonIndexed() : geo;
+  const p = g.attributes.position;
+  const v = new THREE.Vector3();
+  const c = new THREE.Color(color);
+  for (let i=0;i<p.count;i++){
+    v.fromBufferAttribute(p, i);
+    if (matrix) v.applyMatrix4(matrix);
+    this.pos.push(v.x, v.y, v.z);
+    this.col.push(c.r, c.g, c.b);
+  }
+  if (g !== geo) g.dispose();
+  return this;
+};
+// a bare triangle, for things with no primitive that fits (grass blades, ridge faces)
+Merger.prototype.tri = function(a, b, c, color){
+  const col = new THREE.Color(color);
+  [a,b,c].forEach(v => { this.pos.push(v[0],v[1],v[2]); this.col.push(col.r,col.g,col.b); });
+  return this;
+};
+Merger.prototype.quad = function(a, b, c, d, color){
+  this.tri(a,b,c,color); this.tri(a,c,d,color); return this;
+};
+Merger.prototype.build = function(){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(this.pos, 3));
+  g.setAttribute('color',    new THREE.Float32BufferAttribute(this.col, 3));
+  g.computeVertexNormals();
+  return g;
+};
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler();
+function TRS(px,py,pz, rx,ry,rz, sx,sy,sz){
+  _e.set(rx||0, ry||0, rz||0);
+  _q.setFromEuler(_e);
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3(px,py,pz), _q,
+    new THREE.Vector3(sx===undefined?1:sx, sy===undefined?(sx===undefined?1:sx):sy, sz===undefined?(sx===undefined?1:sx):sz));
+}
+
+/* ============================================================
+   the land
+
+   The 2D build walked left to right across a 3400-unit strip. Standing on a card the same
+   journey has to fold up, so the trail switches back up a hillside instead: meadow and river
+   at the front, the shrine on the right shoulder, the house on the back shelf, and the
+   Himalaya across the back edge. Same stations, same order, one island you can walk around.
+
+   Units: 1 = the card's width. The island is a little deeper than it is wide.
+   ============================================================ */
+const ISX = 1.0, ISZ = 1.18;
+const RELIEF = CONFIG.ar.relief === undefined ? 1 : CONFIG.ar.relief;
+const HOUSE_P  = {x:-0.055, z:-0.270};
+const TEMPLE_P = {x: 0.300, z: 0.020};
+const RIVER_Z  = 0.255;
+
+const riverZ = x => RIVER_Z + Math.sin(x*4.1)*0.030 + Math.sin(x*9.3 + 1.2)*0.013;
+
+// the raw hillside, before anything is levelled into it
+function H0(x, z){
+  const back = -z;                                  // 0 at the middle, + toward the back
+  let h = 0.215 * ramp(-0.42, 0.40, back);          // the long climb
+  h += 0.075 * ramp(0.24, 0.40, back);              // the shelf the house stands on
+  h += 0.135 * ramp(0.40, 0.58, back);              // the foot of the range
+  // shoulders closing the valley in on both sides
+  h += 0.150 * ramp(0.20, 0.50, Math.abs(x)) * ramp(-0.30, 0.30, back);
+  // the river has cut a shallow gorge across the meadow
+  const d = (z - riverZ(x)) / 0.080;
+  h -= 0.052 * Math.exp(-d*d);
+  // and the ground is never flat
+  h += 0.0085*Math.sin(x*8.7 + 1)*Math.cos(z*6.3) + 0.0045*Math.sin(x*17 + z*13);
+  return h * RELIEF;
+}
+const HOUSE_Y  = H0(HOUSE_P.x,  HOUSE_P.z);
+const TEMPLE_Y = H0(TEMPLE_P.x, TEMPLE_P.z);
+
+// level a pad under the two buildings so they aren't standing on a slope
+function pad(h, x, z, p, y, r){
+  const m = 1 - ramp(r*0.5, r, Math.hypot(x-p.x, z-p.z));
+  return lerp(h, y, m);
+}
+function H(x, z){
+  let h = H0(x, z);
+  h = pad(h, x, z, HOUSE_P,  HOUSE_Y,  0.115);
+  h = pad(h, x, z, TEMPLE_P, TEMPLE_Y, 0.115);
+  return h;
+}
+const slopeAt = (x,z,dx,dz) => (H(x+dx, z+dz) - H(x-dx, z-dz));
+
+/* the trail — the one line everything else is arranged around.
+   Switchbacks, because that is what a hill trail does and because the climb has to be long
+   enough that the shrine falls at the same point in the walk as it does on the card: a little
+   past half way (1760 of 2900 units there; u = 0.54 here). */
+const TRAIL = [
+  [ 0.27,  0.55], [ 0.09,  0.37], [ 0.07,  0.255], [-0.07,  0.17],
+  [-0.22,  0.10], [-0.05,  0.055], [ 0.14,  0.015],
+  // from the shrine, one last zigzag up the slope, arriving from the right — it never
+  // runs on past the house and doubles back
+  [ 0.00, -0.05], [ 0.13, -0.11], [ 0.06, -0.175],
+  [-0.031,-0.180]     // the doorstep: in front of the step, never through the walls
+];
+
+/* the Himalaya. These are the 2D build's own PEAKS, in its own coordinates — the skyline on
+   the card and the skyline on the island are literally the same ridgeline. */
+const PEAKS = [
+  [-600,600],[-300,520],[-120,470],[0,424],[90,300],[170,392],[250,356],
+  [330,188],[402,302],[470,266],[540,332],[620,230],[700,322],[790,280],
+  [858,150],[882,196],[912,132],[992,292],[1060,250],[1140,332],
+  [1220,204],[1300,312],[1390,268],[1470,362],[1560,238],[1660,330],
+  [1760,300],[1900,398],[2080,350],[2300,430],[2500,600]
+];
+// sample that silhouette as a height in card units, u running 0..1 across the range
+function peakProfile(u){
+  const px = lerp(PEAKS[0][0], PEAKS[PEAKS.length-1][0], clamp(u,0,1));
+  let y = PEAKS[PEAKS.length-1][1];
+  for (let i=0;i<PEAKS.length-1;i++){
+    const [x0,y0] = PEAKS[i], [x1,y1] = PEAKS[i+1];
+    if (px >= x0 && px <= x1){ y = lerp(y0, y1, (px-x0)/(x1-x0)); break; }
+  }
+  return (600 - y) / 468;                 // 0 at the valley floor, 1 at the highest peak
+}
+// a ridgeline in the manner of the 2D build's hills: three sines, decreasing in size
+function ridgeProfile(shift, amp, period, u){
+  const x = u*3000;
+  return 0.5 + (Math.sin((x+shift)*0.00085*period)
+              + Math.sin((x+shift*1.7)*0.0021*period)*0.42
+              + Math.sin((x+shift*0.6)*0.0049*period)*0.17) * amp;
+}
+</script>
+<script>
+/* ============================================================
+   the ground
+   ============================================================ */
+const GRID = MOBILE || LITE ? 68 : 92;
+
+// what colour the hillside is at a given point: grass low down, drying to khaki as it climbs,
+// bare rock on the shoulders, a cap of snow on the very tops. The 2D build's hillNear gradient,
+// unrolled into three dimensions.
+const _c1 = new THREE.Color(), _c2 = new THREE.Color();
+const C_GRASS = new THREE.Color(PAL.grass),     C_GRASSD = new THREE.Color(PAL.grassMid);
+const C_KHAKI = new THREE.Color("#8E9A54"),     C_ROCK   = new THREE.Color(PAL.rockLit);
+const C_ROCKD = new THREE.Color(PAL.rockMid),   C_SNOW   = new THREE.Color(PAL.snowLit);
+const C_BED   = new THREE.Color("#6E6B57"),     C_TERR   = new THREE.Color(PAL.terrA);
+
+function groundColor(x, z, h, out){
+  out.copy(C_GRASS).lerp(C_GRASSD, ramp(-0.02, 0.10, h) * 0.45);
+  out.lerp(C_KHAKI, ramp(0.14, 0.30, h));
+  out.lerp(C_ROCK,  ramp(0.30, 0.44, h) * 0.9);
+  out.lerp(C_ROCKD, ramp(0.40, 0.52, h) * 0.6);
+  out.lerp(C_SNOW,  ramp(0.48, 0.58, h));
+  // the terraced flank, left of the trail
+  const terr = ramp(0.26, 0.40, -x) * ramp(-0.22, -0.12, -z) * (1 - ramp(0.16, 0.26, -z));
+  out.lerp(C_TERR, terr * 0.5);
+  // the river bed, scoured and wet
+  const d = (z - riverZ(x)) / 0.075;
+  out.lerp(C_BED, Math.exp(-d*d) * 0.7);
+  return out;
+}
+
+function buildTerrain(root){
+  const tg = new THREE.PlaneGeometry(ISX, ISZ, GRID, GRID);
+  tg.rotateX(-Math.PI/2);
+  const p = tg.attributes.position, cols = new Float32Array(p.count*3);
+  const tmp = new THREE.Color();
+  for (let i=0;i<p.count;i++){
+    const x = p.getX(i), z = p.getZ(i), h = H(x, z);
+    p.setY(i, h);
+    groundColor(x, z, h, tmp);
+    cols[i*3] = tmp.r; cols[i*3+1] = tmp.g; cols[i*3+2] = tmp.b;
+  }
+  tg.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+  tg.computeVertexNormals();
+  const terrain = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:1, metalness:0, envMapIntensity:.3}));
+  terrain.receiveShadow = true;
+  root.add(terrain);
+
+  /* the earth skirt — what turns a patch of hillside into a thing standing on a card */
+  const N = GRID, per = [], hx = ISX/2, hz = ISZ/2;
+  for (let i=0;i<=N;i++) per.push([-hx + ISX*i/N,  hz]);
+  for (let i=1;i<=N;i++) per.push([ hx,            hz - ISZ*i/N]);
+  for (let i=1;i<=N;i++) per.push([ hx - ISX*i/N, -hz]);
+  for (let i=1;i<=N;i++) per.push([-hx,          -hz + ISZ*i/N]);
+  const M = new Merger(), BOT = -0.062;
+  const cTop = PAL.earth, cMid = "#5A3E2C", cBot = PAL.earthDeep;
+  for (let i=0;i<per.length-1;i++){
+    const a = per[i], b = per[i+1];
+    const ha = H(a[0], a[1]), hb = H(b[0], b[1]);
+    const ma = lerp(ha, BOT, 0.45), mb = lerp(hb, BOT, 0.45);
+    // two bands, so the cliff reads as soil over rock rather than one flat wall
+    M.quad([a[0],ha,a[1]], [b[0],hb,b[1]], [b[0],mb,b[1]], [a[0],ma,a[1]], cTop);
+    M.quad([a[0],ma,a[1]], [b[0],mb,b[1]], [b[0],BOT,b[1]], [a[0],BOT,a[1]],
+           (i & 2) ? cMid : cBot);
+  }
+  const skirt = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, side:THREE.DoubleSide, roughness:1, envMapIntensity:.25}));
+  skirt.receiveShadow = true;
+  root.add(skirt);
+
+  const under = new THREE.Mesh(new THREE.PlaneGeometry(ISX, ISZ),
+    new THREE.MeshStandardMaterial({color:"#2E211B", roughness:1}));
+  under.rotation.x = Math.PI/2; under.position.y = BOT;
+  root.add(under);
+}
+
+/* ---- terraced paddy, cut into the left flank ----
+   The 2D build drew these as eleven contour strokes on the mid hills. Here they are real
+   shelves with real risers, which is what they are on a hill above Kathmandu. */
+function buildTerraces(root){
+  const M = new Merger(), K = 8, X0 = -0.455, X1 = -0.300, S = 14;
+  for (let k=0;k<K;k++){
+    const zb = lerp(0.115, -0.185, k/(K-1));   // uphill edge
+    const zf = zb + 0.040;                     // the lip it falls off
+    const top = k % 2 ? PAL.terrA : PAL.terrB;
+    for (let i=0;i<S;i++){
+      const xa = lerp(X0, X1, i/S), xb = lerp(X0, X1, (i+1)/S);
+      const ya = H(xa, zb) + 0.003, yb = H(xb, zb) + 0.003;
+      const fa = H(xa, zf),         fb = H(xb, zf);
+      if (ya - fa < 0.002) continue;           // no step worth building here
+      M.quad([xa,ya,zb], [xb,yb,zb], [xb,yb,zf], [xa,ya,zf], top);          // the flooded shelf
+      M.quad([xa,ya,zf], [xb,yb,zf], [xb,fb-0.004,zf], [xa,fa-0.004,zf],    // the stone riser
+             k % 2 ? "#7A6646" : "#6B5A3E");
+    }
+  }
+  const m = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, side:THREE.DoubleSide, roughness:.95, envMapIntensity:.3}));
+  m.receiveShadow = true; root.add(m);
+}
+
+/* ============================================================
+   the Himalaya
+
+   A range built as a real landform — a crest with a lit face falling toward the valley and a
+   shaded one falling away behind — rather than a flat cut-out, so it still reads as mountains
+   when she walks around the card.
+   ============================================================ */
+function buildRidge(o){
+  const M = new Merger(), N = o.N || 72;
+  const dx = o.b[0]-o.a[0], dz = o.b[1]-o.a[1];
+  const L = Math.hypot(dx, dz) || 1;
+  const nx = -dz/L, nz = dx/L;                 // unit normal: the way the lit face looks
+  const hazeC = new THREE.Color(o.haze || "#C98C7E");
+  const col = new THREE.Color();
+  const tint = (hex, hN, lit) => {
+    col.set(hex);
+    if (!lit) col.multiplyScalar(0.72);
+    // aerial perspective: the foot of the range dissolves into the haze
+    col.lerp(hazeC, (o.hazeAmt === undefined ? 0.5 : o.hazeAmt) * (1 - clamp(hN*1.5,0,1)));
+    return col.getHex();
+  };
+  const row = [];
+  for (let i=0;i<=N;i++){
+    const u = i/N;
+    const hN = clamp(o.prof(u), 0, 1);
+    // high crests sit a little further back, saddles pull forward
+    const off = (hN - 0.45) * (o.wob || 0.05);
+    const cx = o.a[0] + dx*u - nx*off, cz = o.a[1] + dz*u - nz*off;
+    const fx = cx + nx*o.depth,      fz = cz + nz*o.depth;
+    const bx = cx - nx*(o.back||o.depth), bz = cz - nz*(o.back||o.depth);
+    row.push({
+      hN,
+      c:[cx, H(cx,cz) + (o.lift||0) + hN*o.hMax, cz],
+      f:[fx, H(fx,fz) + 0.002, fz],
+      k:[bx, H(bx,bz) + 0.002, bz]
+    });
+  }
+  for (let i=0;i<N;i++){
+    const a = row[i], b = row[i+1];
+    const hN = (a.hN + b.hN) * 0.5;
+    // Snow caps the crests only: above the snowline the top of each face turns white, deeper
+    // on the higher peaks and ragged from one strip to the next, and bare rock runs on below.
+    const sn = ramp(o.snow - 0.06, o.snow + 0.06, hN);
+    const cap = sn * clamp(0.22 + (hN - o.snow)*1.6, 0.16, 0.62) * (0.8 + 0.4*(Math.sin(i*12.9898 + o.snow*78.233)*0.5 + 0.5));
+    const rockLit = tint(o.rockLit, hN, true), rockShade = tint(o.rockDark, hN, false);
+    if (cap < 0.02){
+      M.quad(a.c, b.c, b.f, a.f, rockLit);
+      M.quad(b.c, a.c, a.k, b.k, rockShade);
+      continue;
+    }
+    const at = (p, q, k) => [lerp(p[0],q[0],k), lerp(p[1],q[1],k), lerp(p[2],q[2],k)];
+    const af = at(a.c, a.f, cap), bf = at(b.c, b.f, cap);
+    const ak = at(a.c, a.k, cap), bk = at(b.c, b.k, cap);
+    M.quad(a.c, b.c, bf, af, tint(o.snowLit,   hN, true));
+    M.quad(af,  bf,  b.f, a.f, rockLit);
+    M.quad(b.c, a.c, ak, bk, tint(o.snowShade, hN, false));
+    M.quad(bk,  ak,  a.k, b.k, rockShade);
+  }
+  const mesh = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, side:THREE.DoubleSide,
+    roughness:o.rough === undefined ? 0.95 : o.rough, metalness:0,
+    envMapIntensity:o.env === undefined ? 0.35 : o.env}));
+  mesh.castShadow = !!o.shadow && !LITE;
+  mesh.receiveShadow = true;
+  return {mesh, row, nx, nz};
+}
+
+function buildRanges(root){
+  const out = {};
+  // Everything here is kept inside the island's own footprint. A range whose foot hangs off
+  // the edge has nothing under it, and in AR you see straight through to the camera feed.
+  // 1. the snow range across the back — the card's own skyline, in three dimensions
+  out.snow = buildRidge({
+    a:[-0.49,-0.435], b:[0.49,-0.485], N: MOBILE?84:120, depth:0.095, back:0.085, wob:0.035,
+    prof:u => peakProfile(u)*0.94 + 0.016*Math.sin(u*41), hMax:0.42*RELIEF, snow:0.50,
+    snowLit:PAL.snowLit, snowShade:PAL.snowShade, rockLit:PAL.rockLit, rockDark:PAL.rockDark,
+    haze:"#C98C7E", hazeAmt:0.46, shadow:true, rough:0.8, env:0.5
+  });
+  root.add(out.snow.mesh);
+
+  // 2. a hazier wall behind it, filling the saddles so the range has somewhere to recede
+  // into. It must stay BELOW the snow line: on the card the Himalaya is the highest layer and
+  // everything else sits under it, and a back wall that out-tops the peaks inverts that.
+  out.far = buildRidge({
+    a:[-0.44,-0.525], b:[0.44,-0.540], N:56, depth:0.045, back:0.030, wob:0.02,
+    // tapered at both ends so it dies away behind the shoulders instead of riding up on top
+    // of them — that was what let it overtop the peaks
+    prof:u => (ridgeProfile(400, 0.30, 1.0, u)*0.8 + 0.22) * (0.34 + 0.66*Math.sin(Math.PI*u)),
+    hMax:0.20*RELIEF, lift:0.02*RELIEF, snow:0.58,
+    snowLit:"#F2ECE6", snowShade:"#98A2BA", rockLit:PAL.hillFar, rockDark:PAL.hillFar2,
+    haze:"#D6A091", hazeAmt:0.72, rough:1
+  });
+  root.add(out.far.mesh);
+
+  // 3 & 4. the shoulders that close the valley in at the back. They stop short of the
+  // mid-ground on purpose: the left flank is wanted open for the terraces, the right for the
+  // shrine. (a -> b is ordered so the lit face looks into the valley.)
+  out.left = buildRidge({
+    a:[-0.345,-0.095], b:[-0.425,-0.455], N:40, depth:0.070, back:0.065, wob:0.035,
+    prof:u => ridgeProfile(1500, 0.26, 1.6, u)*0.62 + 0.12, hMax:0.28*RELIEF, snow:0.72,
+    snowLit:PAL.snowLit, snowShade:PAL.snowShade, rockLit:"#8A5440", rockDark:"#4E2E28",
+    haze:"#8E7A72", hazeAmt:0.30, shadow:true
+  });
+  root.add(out.left.mesh);
+
+  out.right = buildRidge({
+    a:[0.425,-0.455], b:[0.345,-0.150], N:36, depth:0.070, back:0.065, wob:0.035,
+    prof:u => ridgeProfile(2600, 0.24, 1.9, u)*0.58 + 0.12, hMax:0.25*RELIEF, snow:0.74,
+    snowLit:PAL.snowLit, snowShade:PAL.snowShade, rockLit:"#84503E", rockDark:"#4A2C26",
+    haze:"#8E7A72", hazeAmt:0.28, shadow:true
+  });
+  root.add(out.right.mesh);
+  return out;
+}
+
+/* ---- pines, the way the 2D build scattered them: along every ridge ---- */
+function pineInto(M, x, y, z, h, col, dark){
+  const w = h*0.40;
+  M.add(new THREE.CylinderGeometry(h*0.035, h*0.05, h*0.34, 5),
+        TRS(x, y + h*0.17, z), dark);
+  for (let k=0;k<3;k++){
+    const r = w*(1 - k*0.26), hh = h*0.40;
+    M.add(new THREE.ConeGeometry(r, hh, 7),
+          TRS(x, y + h*(0.34 + k*0.21) + hh*0.5, z),
+          k === 0 ? dark : col);
+  }
+}
+function buildPines(root, ranges){
+  const near = new Merger(), far = new Merger();
+  const R = rng(77);
+  // on the two shoulders, and on the near slope
+  [["left", ranges.left, PAL.pineMid, "#22302E", 26],
+   ["right", ranges.right, PAL.pineMid, "#22302E", 24]].forEach(([, rg, col, dark, n])=>{
+    for (let i=0;i<n;i++){
+      const t = R(), idx = Math.floor(t * (rg.row.length-1));
+      const p = rg.row[idx];
+      const s = 0.25 + R()*0.68;                                 // down the lit face
+      const x = lerp(p.c[0], p.f[0], s), z = lerp(p.c[2], p.f[2], s);
+      pineInto(near, x, H(x,z) - 0.004, z, 0.05 + R()*0.045, col, dark);
+    }
+  });
+  // a dark fringe at the foot of the snow range
+  for (let i=0;i<(LITE?14:30);i++){
+    const u = R(), p = ranges.snow.row[Math.floor(u*(ranges.snow.row.length-1))];
+    const s = 0.62 + R()*0.36;
+    const x = lerp(p.c[0], p.f[0], s), z = lerp(p.c[2], p.f[2], s);
+    pineInto(far, x, H(x,z) - 0.004, z, 0.042 + R()*0.04, PAL.pineNear, "#18231F");
+  }
+  // and a stand on the near hillside, clear of the trail
+  for (let i=0, n=0; i<180 && n<(LITE?8:16); i++){
+    const x = -0.47 + R()*0.94, z = -0.42 + R()*0.78;
+    if (Math.hypot(x-HOUSE_P.x, z-HOUSE_P.z) < 0.17) continue;
+    if (Math.hypot(x-TEMPLE_P.x, z-TEMPLE_P.z) < 0.17) continue;
+    if (Math.abs(z - riverZ(x)) < 0.07) continue;
+    if (nearTrail(x, z) < 0.085) continue;
+    n++;
+    pineInto(near, x, H(x,z) - 0.004, z, 0.045 + R()*0.05, "#36604A", "#243F33");
+  }
+  const m1 = new THREE.Mesh(near.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.9, envMapIntensity:.3}));
+  m1.castShadow = !LITE; m1.receiveShadow = true; root.add(m1);
+  const m2 = new THREE.Mesh(far.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:1, envMapIntensity:.2}));
+  m2.receiveShadow = true; root.add(m2);
+}
+
+/* ============================================================
+   the trail, the river and the bridge
+   ============================================================ */
+let TRAIL_CURVE = null;
+function nearTrail(x, z){
+  if (!TRAIL_CURVE) return 9;
+  let best = 9;
+  for (let i=0;i<=30;i++){
+    const p = TRAIL_CURVE.getPointAt(i/30);
+    const d = Math.hypot(p.x-x, p.z-z);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+// a flat band laid over the ground, following a curve
+function ribbon(curve, width, yOff, material, S, uvRep){
+  const pos = [], uv = [], idx = [];
+  for (let i=0;i<=S;i++){
+    const u = i/S, p = curve.getPointAt(u), t = curve.getTangentAt(u);
+    let nx = -t.z, nz = t.x;
+    const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l;
+    [1,-1].forEach((s,k)=>{
+      const x = p.x + nx*width/2*s, z = p.z + nz*width/2*s;
+      pos.push(x, H(x,z) + yOff, z); uv.push(u*(uvRep||1), k);
+    });
+  }
+  for (let i=0;i<S;i++){ const a = i*2; idx.push(a, a+2, a+1, a+1, a+2, a+3); }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv',       new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  material.side = THREE.DoubleSide;
+  return new THREE.Mesh(g, material);
+}
+
+function buildTrail(root){
+  TRAIL_CURVE = new THREE.CatmullRomCurve3(TRAIL.map(p => new THREE.Vector3(p[0], 0, p[1])));
+  const path = ribbon(TRAIL_CURVE, 0.052, 0.0045,
+    new THREE.MeshStandardMaterial({color:PAL.trail, roughness:1, envMapIntensity:.25}), 140, 1);
+  path.receiveShadow = true; root.add(path);
+  // the sunlit lip the 2D build strokes along the crest of the trail
+  const lip = ribbon(TRAIL_CURVE, 0.060, 0.0032,
+    new THREE.MeshStandardMaterial({color:PAL.trailLip, roughness:1, transparent:true,
+      opacity:.5, envMapIntensity:.2}), 110, 1);
+  root.add(lip);
+  // stones pressed into the path
+  const M = new Merger(), R = rng(31);
+  for (let i=0;i<(LITE?24:54);i++){
+    const u = R(), p = TRAIL_CURVE.getPointAt(u), t = TRAIL_CURVE.getTangentAt(u);
+    let nx = -t.z, nz = t.x; const l = Math.hypot(nx,nz)||1; nx/=l; nz/=l;
+    const s = (R()-0.5)*0.05;
+    const x = p.x + nx*s, z = p.z + nz*s, r = 0.0035 + R()*0.004;
+    M.add(new THREE.DodecahedronGeometry(r, 0), TRS(x, H(x,z)+r*0.3, z, R()*3, R()*3, 0, 1, 0.6, 1),
+          R() > .5 ? "#A89374" : "#8E7351");
+  }
+  const st = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:1}));
+  st.receiveShadow = true; root.add(st);
+  return TRAIL_CURVE;
+}
+
+function buildRiver(root){
+  const pts = [];
+  for (let i=0;i<=8;i++){
+    const x = lerp(-0.485, 0.485, i/8);
+    pts.push(new THREE.Vector3(x, 0, riverZ(x)));
+  }
+  const curve = new THREE.CatmullRomCurve3(pts);
+
+  // the water: the 2D build's riverGrad — gold at the near edge, dusk-purple at the far
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0,0,0,64);
+  g.addColorStop(0, PAL.riverHi); g.addColorStop(.42, PAL.riverMid); g.addColorStop(1, PAL.riverLo);
+  x.fillStyle = g; x.fillRect(0,0,256,64);
+  const R = rng(5);
+  x.strokeStyle = 'rgba(255,245,215,.55)'; x.lineWidth = 2.2; x.lineCap = 'round';
+  for (let i=0;i<44;i++){
+    const px = R()*256, py = R()*64;
+    x.beginPath(); x.moveTo(px,py); x.quadraticCurveTo(px+10, py-4, px+24, py); x.stroke();
+  }
+  const tex = srgb(new THREE.CanvasTexture(c));
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = MAXANISO;
+  const water = ribbon(curve, 0.085, 0.016, new THREE.MeshStandardMaterial({
+    map:tex, emissive:"#8E5A3C", emissiveIntensity:.35, roughness:.16, metalness:.3,
+    transparent:true, opacity:.93, envMapIntensity:1.3}), 90, 7);
+  root.add(water);
+
+  // wet stones along both banks
+  const M = new Merger(), S = rng(19);
+  for (let i=0;i<(LITE?16:34);i++){
+    const px = -0.465 + S()*0.93;
+    const side = S() > .5 ? 1 : -1;
+    const pz = riverZ(px) + side*(0.052 + S()*0.03);
+    const r = 0.004 + S()*0.006;
+    M.add(new THREE.DodecahedronGeometry(r, 0),
+          TRS(px, H(px,pz) + r*0.3, pz, S()*3, S()*3, 0, 1, .7, 1), S() > .5 ? "#8E8A84" : "#6E6A66");
+  }
+  const bank = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.6, envMapIntensity:.6}));
+  bank.receiveShadow = true; root.add(bank);
+  return {curve, tex};
+}
+
+// the deck's height over the ground beneath it, by distance from its middle: level with the
+// trail at each end, arching well clear of the water (which floats 0.016 over its bed) between.
+// The ground rises toward both banks, so this has to be measured plank by plank — one level
+// taken at the middle left the uphill end of the deck under water.
+const BRIDGE_HALF = 0.075;
+const deckOff = s => 0.0045 + 0.026*Math.sqrt(Math.max(0, 1 - Math.pow(s/BRIDGE_HALF, 2)));
+// how high the walker rides over the bridge
+function bridgeLift(s){
+  return Math.abs(s) < BRIDGE_HALF ? deckOff(s) - 0.0045 : 0;
+}
+
+function buildBridge(root, trail, river){
+  // where the trail crosses the water
+  let uB = 0.2, best = 9;
+  for (let u=0; u<=0.6; u+=0.004){
+    const p = trail.getPointAt(u);
+    const d = Math.abs(p.z - riverZ(p.x));
+    if (d < best){ best = d; uB = u; }
+  }
+  const bp = trail.getPointAt(uB), bt = trail.getTangentAt(uB);
+  const yaw = Math.atan2(-bt.z, bt.x);
+  const g = new THREE.Group();
+  g.position.set(bp.x, 0, bp.z); g.rotation.y = yaw;
+
+  // the top of the deck at s along the bridge (local +x runs along the trail)
+  const tl = Math.hypot(bt.x, bt.z) || 1;
+  const top = s => H(bp.x + s*bt.x/tl, bp.z + s*bt.z/tl) + deckOff(s);
+  const pitch = s => Math.atan2(top(s + 0.002) - top(s - 0.002), 0.004);
+  const M = new Merger();
+  const N = Math.round(BRIDGE_HALF*2/0.0112);
+  for (let i=0;i<=N;i++){
+    const s = -BRIDGE_HALF + i*BRIDGE_HALF*2/N;
+    M.add(new THREE.BoxGeometry(0.0104, 0.005, 0.058),
+          TRS(s, top(s) - 0.0025, 0, 0, 0, pitch(s)),
+          i % 2 ? "#9A6B45" : "#B07D52");
+  }
+  // posts, and a handrail that follows the arch from post to post
+  const posts = [-0.068, -0.023, 0.023, 0.068];
+  [-1,1].forEach(side => {
+    posts.forEach(s => M.add(new THREE.CylinderGeometry(0.0026, 0.0026, 0.026, 6),
+          TRS(s, top(s) + 0.013, side*0.031), PAL.woodDark));
+    for (let k=0;k<posts.length-1;k++){
+      const a = posts[k], b = posts[k+1];
+      const ya = top(a) + 0.025, yb = top(b) + 0.025;
+      M.add(new THREE.BoxGeometry(Math.hypot(b-a, yb-ya), 0.0025, 0.0035),
+            TRS((a+b)/2, (ya+yb)/2, side*0.031, 0, 0, Math.atan2(yb-ya, b-a)), "#7A5540");
+    }
+  });
+  const m = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.85}));
+  m.castShadow = !LITE; m.receiveShadow = true;
+  g.add(m); root.add(g);
+  return uB;
+}
+
+/* ============================================================
+   prayer flags — blue, white, red, green, yellow, left to right, always
+   ============================================================ */
+let FLAG_TEX = null;
+function prayerFlags(root, ax, az, bx, bz, height, n, out){
+  if (!FLAG_TEX) FLAG_TEX = flagTex();
+  const topA = H(ax,az) + height, topB = H(bx,bz) + height*0.84;
+  const M = new Merger();
+  [[ax,az,topA],[bx,bz,topB]].forEach(p => {
+    M.add(new THREE.CylinderGeometry(0.0028, 0.0042, p[2]-H(p[0],p[1]), 7),
+          TRS(p[0], (p[2]+H(p[0],p[1]))/2, p[1]), PAL.woodDark);
+  });
+  const pole = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.9}));
+  pole.castShadow = !LITE; root.add(pole);
+
+  const sag = 0.032;
+  const at = u => new THREE.Vector3(
+    lerp(ax,bx,u),
+    lerp(topA,topB,u) - sag*Math.sin(Math.PI*u),
+    lerp(az,bz,u));
+  const line = [];
+  for (let i=0;i<=20;i++) line.push(at(i/20));
+  root.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(line),
+    new THREE.LineBasicMaterial({color:"#4A3B2E"})));
+
+  const baseRot = Math.atan2(-(bz-az), bx-ax);
+  for (let i=0;i<n;i++){
+    const u = (i+0.6)/(n+0.2);
+    const pivot = new THREE.Group();
+    pivot.position.copy(at(u));
+    const geo = new THREE.PlaneGeometry(0.030, 0.024, 7, 5);
+    geo.translate(0.015, 0, 0);          // the attached edge sits on the pivot
+    const fl = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      map:FLAG_TEX, color:FLAG_COLS[i%5], side:THREE.DoubleSide, roughness:1,
+      emissive:FLAG_COLS[i%5], emissiveIntensity:.07}));
+    fl.position.set(0, -0.013, 0);
+    pivot.add(fl); root.add(pivot);
+    out.push({pivot, geo, base:geo.attributes.position.array.slice(), i, baseRot});
+  }
+}
+
+/* ============================================================
+   grass, gurans bushes, rocks — the small stuff that makes it a place
+   ============================================================ */
+function buildScatter(root){
+  const M = new Merger(), R = rng(101);
+  // grass blades: one merged mesh instead of two hundred and sixty little ones
+  const tufts = LITE ? 70 : 150;
+  for (let i=0;i<tufts;i++){
+    const x = -0.47 + R()*0.94, z = -0.44 + R()*0.95;
+    if (Math.abs(z - riverZ(x)) < 0.05) continue;
+    if (nearTrail(x, z) < 0.030) continue;
+    const y = H(x,z), front = z > 0.30;
+    const col = front ? "#2A3C26" : (R() > .5 ? PAL.grassLit : "#5E7A34");
+    const hh = front ? 0.020 + R()*0.016 : 0.009 + R()*0.011;
+    for (let k=0;k<3;k++){
+      const a = R()*6.283, w = hh*0.11, bend = (R()-0.5)*hh*0.7;
+      const bx = x + Math.cos(a)*hh*0.14, bz = z + Math.sin(a)*hh*0.14;
+      M.quad([bx-w, y, bz], [bx+w, y, bz],
+             [bx+w*0.3 + bend, y+hh, bz + bend*0.6],
+             [bx-w*0.3 + bend, y+hh, bz + bend*0.6], col);
+    }
+  }
+  const grass = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, side:THREE.DoubleSide, roughness:1, envMapIntensity:.2}));
+  root.add(grass);
+
+  // lali gurans — the national flower — dotted along the climb
+  const B = new Merger(), S = rng(53);
+  for (let i=0, n=0; i<120 && n<(LITE?7:14); i++){
+    const x = -0.46 + S()*0.92, z = -0.40 + S()*0.88;
+    if (nearTrail(x, z) < 0.042 || nearTrail(x, z) > 0.17) continue;
+    if (Math.abs(z - riverZ(x)) < 0.06) continue;
+    n++;
+    const y = H(x,z), r = 0.016 + S()*0.010;
+    B.add(new THREE.IcosahedronGeometry(r, 0), TRS(x, y + r*0.42, z, 0, S()*3, 0, 1, 0.56, 1), "#2B4026");
+    for (let k=0;k<5;k++){
+      const a = k/5*6.283 + S();
+      B.add(new THREE.IcosahedronGeometry(r*0.21, 0),
+            TRS(x + Math.cos(a)*r*0.64, y + r*0.62 + S()*r*0.2, z + Math.sin(a)*r*0.64), PAL.guras);
+    }
+  }
+  // boulders
+  for (let i=0, n=0; i<160 && n<(LITE?5:10); i++){
+    const x = -0.46 + S()*0.92, z = -0.44 + S()*0.9;
+    if (nearTrail(x, z) < 0.05) continue;
+    if (Math.abs(z - riverZ(x)) < 0.07) continue;
+    if (Math.hypot(x-HOUSE_P.x, z-HOUSE_P.z) < 0.15) continue;
+    if (Math.hypot(x-TEMPLE_P.x, z-TEMPLE_P.z) < 0.15) continue;
+    n++;
+    const r = 0.010 + S()*0.012;
+    B.add(new THREE.DodecahedronGeometry(r, 0),
+          TRS(x, H(x,z) + r*0.45, z, S()*3, S()*3, 0), S() > .5 ? "#A39B9B" : "#8E8690");
+  }
+  const bits = new THREE.Mesh(B.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.88, envMapIntensity:.35}));
+  bits.castShadow = !LITE; bits.receiveShadow = true; root.add(bits);
+}
+</script>
+<script>
+/* ============================================================
+   a sayapatri bloom — used in the shrine garland, the yard and the finale
+   ============================================================ */
+function marigoldInto(M, x, y, z, r, col){
+  M.add(new THREE.IcosahedronGeometry(r, 1), TRS(x, y, z, 0, 0, 0, 1, 0.84, 1), col);
+}
+function marigold(r, col){
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1),
+    smat(col, {emissive:col, emissiveIntensity:.45, roughness:.55}));
+  body.scale.y = 0.84; g.add(body);
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(r*0.5, 0),
+    smat("#FFE08A", {emissive:"#FFC21F", emissiveIntensity:.8}));
+  core.position.y = r*0.4; g.add(core);
+  return g;
+}
+
+/* ============================================================
+   Dakshinkali — a shrine left open to the sky, under a gilded
+   canopy carried by four serpents, where two rivers meet
+   ============================================================ */
+const TS = 0.00067;        // the 2D build's shrine units, converted to card widths
+function buildTemple(){
+  const G = new THREE.Group();
+  const S = new Merger();      // stone, wood and cloth
+  const A = new Merger();      // everything gilded
+  const u = v => v*TS;
+
+  // worn stone steps up to the platform
+  for (let i=0;i<3;i++){
+    const w = u(256 - i*14);
+    S.add(new THREE.BoxGeometry(w, u(12), w*0.86), TRS(0, u(8 + i*11), 0),
+          i%2 ? "#7E6E6A" : "#8C7B75");
+  }
+  // the platform, and the vermillion smeared into it
+  S.add(new THREE.BoxGeometry(u(236), u(16), u(236*0.86)), TRS(0, u(46+8), 0), PAL.stone);
+  S.add(new THREE.BoxGeometry(u(236), u(3), u(236*0.86)), TRS(0, u(46+16), 0), "#D6BE9E");
+  [[-86,-42],[-30,30],[44,-18],[96,36]].forEach(([sx,sz])=>{
+    S.add(new THREE.CylinderGeometry(u(13), u(13), u(2), 8), TRS(u(sx), u(62), u(sz)), "#B2202C");
+  });
+
+  // the four posts, with their carved collars
+  [[-88,-70],[88,-70],[-88,70],[88,70]].forEach(([px,pz])=>{
+    S.add(new THREE.BoxGeometry(u(14), u(122), u(14)), TRS(u(px), u(62 + 61), u(pz)), PAL.wood);
+    [8, 104].forEach(cy =>
+      S.add(new THREE.BoxGeometry(u(22), u(8), u(22)), TRS(u(px), u(62 + cy), u(pz)), "#8B5E3C"));
+  });
+
+  // the black stone of the goddess, draped in red, under marigolds
+  S.add(new THREE.CylinderGeometry(u(13), u(30), u(72), 10), TRS(0, u(62 + 36), 0), "#211A28");
+  S.add(new THREE.SphereGeometry(u(13), 12, 8), TRS(0, u(62 + 72), 0), "#3A3047");
+  S.add(new THREE.CylinderGeometry(u(32), u(31), u(22), 12), TRS(0, u(62 + 11), 0), "#A8152A");
+  S.add(new THREE.CylinderGeometry(u(32.6), u(32.6), u(6), 12), TRS(0, u(62 + 20), 0), "#D4303F");
+  S.add(new THREE.CylinderGeometry(u(25), u(25), u(3), 10), TRS(0, u(62 + 48), 0), "#C9CDD6");
+  A.add(new THREE.TorusGeometry(u(22), u(2.6), 6, 14, Math.PI), TRS(0, u(62 + 58), u(6), 0, 0, 0), PAL.gold);
+  A.add(new THREE.SphereGeometry(u(6.5), 12, 10), TRS(0, u(62 + 68), 0), PAL.goldLit);
+  // the garland draped over the stone
+  for (let i=0;i<13;i++){
+    const a = Math.PI*0.08 + (i/12)*Math.PI*0.84;
+    marigoldInto(S, Math.cos(a)*u(34), u(62 + 44) + Math.sin(a)*u(16), u(17),
+                 u(4.6), i%2 ? PAL.marigold : PAL.marigoldPale);
+  }
+
+  // the gilded canopy
+  const CAN = u(142);
+  A.add(new THREE.CylinderGeometry(CAN*1.414, CAN*1.414, u(10), 4),
+        TRS(0, u(62 + 110), 0, 0, Math.PI/4, 0), "#8E5E1C");
+  A.add(new THREE.ConeGeometry(CAN*1.414, u(58), 4),
+        TRS(0, u(62 + 115 + 29), 0, 0, Math.PI/4, 0), PAL.gold);
+  A.add(new THREE.ConeGeometry(CAN*1.414*0.97, u(52), 4),
+        TRS(0, u(62 + 118 + 26), 0, 0, Math.PI/4, 0), PAL.goldLit);
+  A.add(new THREE.CylinderGeometry(u(2.6), u(2.6), u(24), 6), TRS(0, u(62 + 186), 0), PAL.gold);
+  A.add(new THREE.SphereGeometry(u(7), 12, 10), TRS(0, u(62 + 200), 0), PAL.goldLit);
+
+  // four golden serpents at the corners of the canopy
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sz])=>{
+    const cx = sx*CAN*0.96, cz = sz*CAN*0.96, cy = u(62 + 112);
+    const ry = Math.atan2(sx, sz);
+    A.add(new THREE.TorusGeometry(u(17), u(3.4), 6, 12, Math.PI*1.25),
+          TRS(cx, cy + u(16), cz, Math.PI/2, ry, 0.5), PAL.gold);
+    A.add(new THREE.ConeGeometry(u(5), u(13), 6), TRS(cx, cy + u(34), cz, 0.5, ry, 0), PAL.goldLit);
+  });
+
+  // the temple bell on its rail — this one swings
+  const railX = u(-176), railZ = u(96);
+  S.add(new THREE.CylinderGeometry(u(3.6), u(3.6), u(106), 7), TRS(railX, u(62 + 53), railZ), "#5B4536");
+  S.add(new THREE.BoxGeometry(u(68), u(5), u(5)), TRS(railX + u(34), u(62 + 106), railZ), "#5B4536");
+  const bell = new THREE.Group();
+  bell.position.set(railX + u(26), u(62 + 104), railZ);
+  const bg = new Merger();
+  bg.add(new THREE.CylinderGeometry(u(1.4), u(1.4), u(10), 6), TRS(0, u(-5), 0), "#8E5E1C");
+  bg.add(new THREE.CylinderGeometry(u(7), u(16), u(26), 10), TRS(0, u(-23), 0), PAL.gold);
+  bg.add(new THREE.CylinderGeometry(u(17.5), u(17.5), u(5), 10), TRS(0, u(-38), 0), "#8E5E1C");
+  bg.add(new THREE.SphereGeometry(u(3.6), 8, 6), TRS(0, u(-47), 0), "#C08A2C");
+  const bellMesh = new THREE.Mesh(bg.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, metalness:.55, roughness:.32, envMapIntensity:1.1}));
+  bellMesh.castShadow = !LITE;
+  bell.add(bellMesh); G.add(bell);
+
+  // trishul planted in the stone
+  const trX = u(158), trZ = u(-70);
+  S.add(new THREE.CylinderGeometry(u(2.6), u(2.6), u(96), 7), TRS(trX, u(62 + 48), trZ), "#9AA2AE");
+  [-16, 0, 16].forEach((px,i)=>{
+    const len = i === 1 ? 36 : 28;
+    S.add(new THREE.CylinderGeometry(u(1.1), u(2.2), u(len), 6),
+          TRS(trX + u(px), u(62 + 96 + len/2), trZ), "#C2C8D2");
+  });
+  S.add(new THREE.BoxGeometry(u(36), u(4), u(4)), TRS(trX, u(62 + 96), trZ), "#C2C8D2");
+  S.add(new THREE.CylinderGeometry(u(3.4), u(3.4), u(18), 6), TRS(trX, u(62 + 72), trZ, 0, 0, Math.PI/2), "#C9242F");
+
+  const stone = new THREE.Mesh(S.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.92, envMapIntensity:.4}));
+  const gold = new THREE.Mesh(A.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, metalness:.55, roughness:.3, envMapIntensity:1.15}));
+  stone.castShadow = gold.castShadow = !LITE;
+  stone.receiveShadow = gold.receiveShadow = true;
+  G.add(stone, gold);
+
+  // the nameplate
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(u(190), u(48)),
+    new THREE.MeshBasicMaterial({map:makeLabelTex("दक्षिणकाली", "#F0C877"),
+      transparent:true, depthWrite:false, toneMapped:false}));
+  plate.position.set(0, u(28), u(236*0.43) + u(3));
+  G.add(plate);
+
+  // the lamp he will light, and the four that warm up at dusk
+  const dx = u(-62), dz = u(84);
+  const diya = new THREE.Mesh(new THREE.CylinderGeometry(u(13), u(9), u(13), 10), mat("#A0562C"));
+  diya.position.set(dx, u(62 + 7), dz); diya.castShadow = !LITE; G.add(diya);
+  const flame = new THREE.Group(); flame.position.set(dx, u(62 + 14), dz);
+  flame.add(new THREE.Mesh(new THREE.ConeGeometry(u(7), u(26), 8),
+    new THREE.MeshBasicMaterial({color:"#FFB03A", transparent:true, opacity:.82,
+      blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false})));
+  flame.children[0].position.y = u(13);
+  const inner = new THREE.Mesh(new THREE.ConeGeometry(u(3.4), u(16), 8),
+    new THREE.MeshBasicMaterial({color:"#FFF1B8", transparent:true, opacity:.95,
+      blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
+  inner.position.y = u(9); flame.add(inner);
+  flame.scale.setScalar(0.0001); G.add(flame);
+
+  const dHalo = halo("#FFB060", 0.075);
+  dHalo.position.set(dx, u(62 + 26), dz); G.add(dHalo);
+  const dLight = new THREE.PointLight("#FFA845", 0, 0.4, 2);
+  dLight.position.set(dx, u(62 + 40), dz); G.add(dLight);
+
+  const lamps = [];
+  [[-104, -80],[-8, 96],[72, -86],[118, 70]].forEach(([lx,lz], i)=>{
+    const g2 = new THREE.Group(); g2.position.set(u(lx), u(62), u(lz));
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(u(8), u(5.5), u(9), 8), mat("#8E4C26"));
+    bowl.position.y = u(4.5); bowl.castShadow = !LITE; g2.add(bowl);
+    const fl = new THREE.Mesh(new THREE.ConeGeometry(u(3.4), u(16), 7),
+      new THREE.MeshBasicMaterial({color:"#FFC24E", transparent:true, opacity:0,
+        blending:THREE.AdditiveBlending, depthWrite:false, toneMapped:false}));
+    fl.position.y = u(17); g2.add(fl);
+    const hl = halo("#FFBE70", 0.05); hl.position.y = u(18); g2.add(hl);
+    G.add(g2);
+    lamps.push({fl, hl, phase: i*1.7});
+  });
+
+  return {g:G, bell, flame, dHalo, dLight, lamps, diyaPos:new THREE.Vector3(dx, u(62+26), dz)};
+}
+
+/* ============================================================
+   the house at the top of the climb
+   ============================================================ */
+const HS = 0.00062;        // the 2D build's house units, converted to card widths
+function buildHouse(){
+  const G = new THREE.Group();
+  const M = new Merger();
+  const u = v => v*HS;
+  const DEP = 0.62;        // how deep the house is, as a fraction of its width
+
+  // stone plinth
+  M.add(new THREE.BoxGeometry(u(300), u(22), u(300*DEP)), TRS(0, u(11), 0), "#6E6058");
+  M.add(new THREE.BoxGeometry(u(284), u(5), u(284*DEP)), TRS(0, u(23), 0), "#A08E7C");
+  // lower storey — red mud, the way hill houses are finished
+  M.add(new THREE.BoxGeometry(u(268), u(82), u(268*DEP)), TRS(0, u(22 + 41), 0), PAL.mud);
+  M.add(new THREE.BoxGeometry(u(269), u(8), u(269*DEP)), TRS(0, u(26), 0), "#7A3621");
+  // upper storey — whitewashed, oversailing a touch
+  M.add(new THREE.BoxGeometry(u(280), u(82), u(280*DEP)), TRS(0, u(104 + 41), 0), PAL.wash);
+  M.add(new THREE.BoxGeometry(u(284), u(7), u(284*DEP)), TRS(0, u(104), 0), PAL.wood);
+  // slate roof, deeply overhung
+  M.add(new THREE.CylinderGeometry(u(176*1.414), u(176*1.414), u(8), 4),
+        TRS(0, u(190), 0, 0, Math.PI/4, 0), "#4A4450");
+  M.add(new THREE.ConeGeometry(u(176*1.414), u(64), 4),
+        TRS(0, u(194 + 32), 0, 0, Math.PI/4, 0, 1, 1, DEP + 0.18), PAL.slate);
+  M.add(new THREE.ConeGeometry(u(168*1.414), u(58), 4),
+        TRS(0, u(198 + 29), 0, 0, Math.PI/4, 0, 1, 1, DEP + 0.18), "#6E6878");
+  // veranda posts and the step at the door
+  [-150, 150].forEach(px =>
+    M.add(new THREE.BoxGeometry(u(10), u(82), u(10)), TRS(u(px), u(22 + 41), u(268*DEP/2 - 6)), PAL.wood));
+  M.add(new THREE.BoxGeometry(u(60), u(9), u(26)), TRS(0, u(26), u(268*DEP/2 + 12)), "#8C7B6A");
+  // the chimney the smoke leaves by
+  M.add(new THREE.BoxGeometry(u(34), u(60), u(34)), TRS(u(104), u(214), u(-30)), "#8A6A5A");
+  // marigolds in the yard
+  const R = rng(67);
+  for (let i=0;i<18;i++){
+    const a = R()*6.283, rad = u(190) + R()*u(70);
+    const px = Math.cos(a)*rad, pz = Math.sin(a)*rad*0.8;
+    if (Math.abs(px) < u(70) && pz > 0) continue;
+    marigoldInto(M, px, u(6), pz, u(7), R() > .5 ? PAL.marigold : PAL.marigoldPale);
+  }
+  // a tulsi pot by the door
+  M.add(new THREE.CylinderGeometry(u(14), u(11), u(22), 8), TRS(u(90), u(33), u(268*DEP/2 + 10)), "#A0562C");
+  for (let i=0;i<7;i++){
+    const a = i/7*6.283;
+    M.add(new THREE.IcosahedronGeometry(u(9), 0),
+          TRS(u(90) + Math.cos(a)*u(10), u(50) + R()*u(14), u(268*DEP/2 + 10) + Math.sin(a)*u(9),
+              0, 0, 0, 1, .55, 1), "#3E6B35");
+  }
+  const body = new THREE.Mesh(M.build(), new THREE.MeshStandardMaterial({
+    vertexColors:true, flatShading:true, roughness:.92, envMapIntensity:.4}));
+  body.castShadow = !LITE; body.receiveShadow = true; G.add(body);
+
+  // windows and door — carved dark wood, lighting one at a time
+  const glowMats = [], haloS = [];
+  const face = u(280*DEP/2);
+  const win = (w, h, x, y, deep)=>{
+    const fr = new THREE.Mesh(new THREE.PlaneGeometry(u(w+18), u(h+16)),
+      new THREE.MeshStandardMaterial({color:"#5B3B26", roughness:.9}));
+    fr.position.set(u(x), u(y), (deep ? u(268*DEP/2) : face) + u(2)); G.add(fr);
+    const m = new THREE.MeshBasicMaterial({color:"#2A2030", toneMapped:false});
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(u(w), u(h)), m);
+    p.position.set(u(x), u(y), (deep ? u(268*DEP/2) : face) + u(3)); G.add(p);
+    glowMats.push(m);
+    const hl = halo("#FFC866", 0.055);
+    hl.position.set(u(x), u(y), (deep ? u(268*DEP/2) : face) + u(12)); G.add(hl); haloS.push(hl);
+  };
+  win(40, 46, -82, 145); win(40, 46, 0, 145); win(40, 46, 82, 145);
+  win(36, 40, -84,  66, true); win(46, 68, 0, 58, true); win(36, 40, 84, 66, true);
+
+  const light = new THREE.PointLight("#FFC866", 0, 0.55, 2);
+  light.position.set(0, u(120), u(140)); G.add(light);
+
+  // thin woodsmoke from the kitchen
+  const smoke = [], stex = smokeTex();
+  for (let i=0;i<(LITE?4:8);i++){
+    const sm = new THREE.Sprite(new THREE.SpriteMaterial({map:stex, color:0xE9D6C4,
+      transparent:true, opacity:0, depthWrite:false}));
+    sm.scale.setScalar(0.03); G.add(sm); smoke.push(sm);
+  }
+  return {g:G, glowMats, haloS, light, smoke, chimney:new THREE.Vector3(u(104), u(246), u(-30))};
+}
+
+/* ============================================================
+   the boy
+
+   A pale-blue daura suruwal under a navy coat, brown shoes, a dhaka topi worn with a tilt,
+   and a lali gurans he has been carrying since the bottom of the hill.
+   ============================================================ */
+// the dhaka weave: small diamonds in navy, red and blue on an off-white ground
+function topiTex(){
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = '#EEE8DE'; x.fillRect(0,0,256,64);
+  const cols = ['#24346A', '#B2333E', '#3E6FB4', '#24346A'];
+  for (let r=0;r<4;r++) for (let k=0;k<16;k++){
+    const cx = k*16 + (r%2)*8 + 4, cy = r*16 + 8;
+    x.fillStyle = cols[(k + r) % cols.length];
+    x.beginPath(); x.moveTo(cx, cy-6); x.lineTo(cx+5, cy); x.lineTo(cx, cy+6); x.lineTo(cx-5, cy);
+    x.closePath(); x.fill();
+    x.fillStyle = '#EEE8DE'; x.fillRect(cx-1.5, cy-1.5, 3, 3);
+  }
+  const t = srgb(new THREE.CanvasTexture(c));
+  t.wrapS = THREE.RepeatWrapping; t.anisotropy = MAXANISO;
+  return t;
+}
+
+// His proportions, in his own units (the root is scaled by S onto the card). A stylised
+// figure about 5.5 heads tall, but with the proportions figure drawing is built on: the hip
+// joint at half his height, the knee halfway down the leg, fingertips reaching mid-thigh.
+// G is where his soles meet the ground; everything else is measured up from it.
+// S alone sets how tall he stands on the card — change it and every proportion comes along.
+const BOY = {S:0.44, G:-0.011, LT:0.064, LS:0.062, FOOT:0.007,
+             TH:0.078, UA:0.050, FA:0.044, HEAD:0.64};
+BOY.HIP = BOY.G + BOY.LT + BOY.LS + BOY.FOOT;
+BOY.LEG = (BOY.LT + BOY.LS + BOY.FOOT) * BOY.S;     // leg length on the card
+BOY.LIFT = 0.0045 - BOY.G * BOY.S;                  // root height that puts his soles on the trail
+BOY.K = BOY.S / 0.58;                               // his size against the build the gait was tuned on
+
+function buildBoy(){
+  const {LT, LS, TH, UA, FA} = BOY;
+  const root = new THREE.Group();
+  const body = new THREE.Group(); root.add(body);
+  const skin  = smat(PAL.skin,  {roughness:.72});
+  const cloth = smat(PAL.cloth, {roughness:.8});
+  const pant  = smat(PAL.pant,  {roughness:.84});
+  const coat  = smat(PAL.coat,  {roughness:.78});
+  const hair  = smat(PAL.hair,  {roughness:.6});
+  const hips = [], knees = [], shoulders = [], elbows = [], eyes = [];
+
+  // two-segment legs
+  [-1,1].forEach(s => {
+    const hip = new THREE.Group(); hip.position.set(s*0.016, BOY.HIP, 0);
+    const thigh = new THREE.Mesh(new THREE.CylinderGeometry(.0112,.0098,LT,9), pant);
+    thigh.position.y = -LT/2; thigh.castShadow = !LITE; hip.add(thigh);
+    const knee = new THREE.Group(); knee.position.y = -LT; hip.add(knee);
+    const shin = new THREE.Mesh(new THREE.CylinderGeometry(.0098,.0084,LS,9), pant);
+    shin.position.y = -LS/2; shin.castShadow = !LITE; knee.add(shin);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(.019,.010,.029), smat(PAL.shoe, {roughness:.45}));
+    shoe.position.set(0,-LS-.002,.005); shoe.castShadow = !LITE; knee.add(shoe);
+    body.add(hip); hips.push(hip); knees.push(knee);
+  });
+
+  const upper = new THREE.Group(); upper.position.y = BOY.HIP; body.add(upper);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(.0225,.0265,TH,12), cloth);
+  torso.position.y = TH/2; torso.castShadow = !LITE; upper.add(torso);
+  // the daura's skirt, falling to mid-thigh below the coat
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(.0268,.0315,.040,14,1,true), cloth);
+  skirt.material = cloth.clone(); skirt.material.side = THREE.DoubleSide;
+  skirt.position.y = -.016; skirt.castShadow = !LITE; upper.add(skirt);
+  // the daura's crossed collar, showing in the coat's V
+  const wrap = new THREE.Mesh(new THREE.BoxGeometry(.016,.030,.003),
+    smat(PAL.clothShade, {roughness:.85}));
+  wrap.position.set(.002,TH*.74,.0245); wrap.rotation.z = -0.42; upper.add(wrap);
+  // the coat: open down the front, hem just past the waist
+  const coatM = coat.clone(); coatM.side = THREE.DoubleSide;
+  const jacket = new THREE.Mesh(new THREE.CylinderGeometry(.0252,.0298,TH+.002,16,1,true,
+    0.34, Math.PI*2 - 0.68), coatM);
+  jacket.position.y = TH/2 - .006; jacket.castShadow = !LITE; upper.add(jacket);
+  // lapels folding back from the collar into the V
+  [-1,1].forEach(s => {
+    const lap = new THREE.Mesh(new THREE.BoxGeometry(.010,.040,.003), smat(PAL.coatDark, {roughness:.7}));
+    lap.position.set(s*.0098,TH*.72,.0238); lap.rotation.z = s*0.30; lap.rotation.y = s*0.35; upper.add(lap);
+    const btn = new THREE.Mesh(new THREE.SphereGeometry(.0018,6,5), smat("#1A2440"));
+    btn.position.set(-.0062, TH*.25 + (s+1)*.0095, .0272); upper.add(btn);
+  });
+  const shoulderPad = new THREE.Mesh(new THREE.CylinderGeometry(.0262,.0252,.010,14), coat);
+  shoulderPad.position.y = TH - .005; upper.add(shoulderPad);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.0085,.010,.016,9), skin);
+  neck.position.y = TH + .008; upper.add(neck);
+
+  // the head, on its own group so it can nod and look; built at the old size, then scaled
+  const head = new THREE.Group(); head.position.y = TH + .020; head.scale.setScalar(BOY.HEAD);
+  upper.add(head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(.0385, 20, 16), skin);
+  skull.position.y = .014; skull.scale.z = 1.04; skull.castShadow = !LITE; head.add(skull);
+  const hr = new THREE.Mesh(new THREE.SphereGeometry(.0408, 18, 12, 0, Math.PI*2, 0, Math.PI*.56), hair);
+  hr.position.set(0,.016,-.004); hr.rotation.x = -.24; head.add(hr);
+  // dhaka topi, one side carried higher, worn with a tilt
+  const topi = new THREE.Group(); topi.position.y = .049; topi.rotation.z = .16; topi.rotation.x = -.06;
+  const weave = topiTex();
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(.0325,.0298,.030,18),
+    [smat("#FFFFFF", {map:weave, roughness:.85}), smat(PAL.topi, {roughness:.85}),
+     smat(PAL.topi, {roughness:.85})]);
+  cap.castShadow = !LITE; topi.add(cap);
+  const top = new THREE.Mesh(new THREE.CircleGeometry(.0326, 18),
+    smat("#FFFFFF", {map:weave, roughness:.85}));
+  top.rotation.x = -Math.PI/2; top.position.y = .0152; topi.add(top);
+  head.add(topi);
+  [-1,1].forEach(s => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(.0052,8,8), smat("#1B1210",{roughness:.3}));
+    e.position.set(s*.0135,.018,.0345); head.add(e); eyes.push(e);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(.0066,8,8), smat("#D98C78",{roughness:.7}));
+    b.scale.set(1,.68,.34); b.position.set(s*.0252,.006,.0318); head.add(b);
+  });
+  const smile = new THREE.Mesh(new THREE.TorusGeometry(.0058,.0011,6,10,Math.PI),
+    smat("#7A2A2A"));
+  smile.rotation.z = Math.PI; smile.position.set(0,.004,.0368); head.add(smile);
+
+  // arms: shoulder, elbow, hand — he needs an elbow to fold his palms together
+  [-1,1].forEach(s => {
+    const sh = new THREE.Group(); sh.position.set(s*.0305,TH*.875,0);
+    const up = new THREE.Mesh(new THREE.CylinderGeometry(.0084,.0076,UA,8), coat);
+    up.position.y = -UA/2; up.castShadow = !LITE; sh.add(up);
+    const el = new THREE.Group(); el.position.y = -UA; sh.add(el);
+    const fo = new THREE.Mesh(new THREE.CylinderGeometry(.0076,.0068,FA-.004,8), coat);
+    fo.position.y = -(FA-.004)/2; fo.castShadow = !LITE; el.add(fo);
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(.0064,.0064,.003,8), cloth);
+    cuff.position.y = -FA+.0025; el.add(cuff);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(.0078,10,8), skin);
+    hand.scale.set(.85,1.15,.7); hand.position.y = -FA-.004; el.add(hand);
+    upper.add(sh); shoulders.push(sh); elbows.push(el);
+  });
+
+  // the lali gurans he holds out at the end
+  const flower = new THREE.Group();
+  flower.position.set(0,-FA-.008,.006);
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(.0016,.0016,.040,5), smat("#3E5C2E"));
+  stem.position.y = .020; flower.add(stem);
+  [[0,.046,0,.0082],[-.009,.040,.003,.0062],[.009,.040,.003,.0062],[0,.052,-.004,.0056]]
+    .forEach(([fx,fy,fz,fr]) => {
+      const b = new THREE.Mesh(new THREE.IcosahedronGeometry(fr,1),
+        smat(PAL.guras,{emissive:PAL.guras, emissiveIntensity:.35, roughness:.55}));
+      b.position.set(fx,fy,fz); flower.add(b);
+    });
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(.0034,0),
+    smat(PAL.gurasCore,{emissive:"#FFC98A", emissiveIntensity:.7}));
+  core.position.set(0,.050,.006); flower.add(core);
+  [-1,1].forEach(s => {
+    const lf = new THREE.Mesh(new THREE.IcosahedronGeometry(.0062,0), smat("#3E6B35"));
+    lf.scale.set(1.5,.32,.8); lf.position.set(s*.008,.022,0); lf.rotation.z = s*.5; flower.add(lf);
+  });
+  const fHalo = halo(PAL.gurasHi, 0.03); fHalo.position.set(0,.048,.004); flower.add(fHalo);
+  flower.scale.setScalar(0.0001);
+  elbows[1].add(flower);
+
+  root.scale.setScalar(BOY.S);
+  return {root, body, upper, head, hips, knees, shoulders, elbows, eyes, flower, fHalo, topi};
+}
+
+/* --------- the poses, in the order he moves through them --------- */
+// y: how far the hips drop · lean: how far he folds forward
+// hip/knee: [kneeling-side, other] · sh: [[x,z],[x,z]] · el: [left,right]
+// Joint signs: +hip swings the leg back, +knee folds the shin back (the only way a knee bends).
+// Kneeling is not taste, it falls out of the leg lengths: the back knee on the ground puts
+// the hips one thigh-length up, which fixes y; the front shin stands upright from the ground,
+// which fixes how far the front thigh reaches forward.
+const KNEEL = (()=>{
+  const {LT, LS, FOOT} = BOY, back = .10;
+  const y = LT*Math.cos(back) - LT - LS - FOOT;
+  const th = Math.acos(clamp((LT*Math.cos(back) - LS - FOOT) / LT, -1, 1));
+  return {y, hip:[back, -th], knee:[1.75, th]};
+})();
+const POSE = {
+  stand: {y:0, lean:.05, hip:[.02,-.02], knee:[.04,.05],
+          sh:[[-.05,-.08],[.05,.08]], el:[-.14,-.14], head:.02},
+  // kneeling at the shrine: one knee down, palms joined, head bowed
+  pray:  {y:KNEEL.y, lean:.30, hip:KNEEL.hip, knee:KNEEL.knee,
+          sh:[[-.52,.70],[-.52,-.70]], el:[-1.85,-1.85], head:.34},
+  // standing bow, palms together
+  namaste:{y:0, lean:.26, hip:[.02,-.02], knee:[.04,.05],
+          sh:[[-.50,.70],[-.50,-.70]], el:[-1.85,-1.85], head:.26},
+  // one knee, turned to her, the gurans held out
+  offer: {y:KNEEL.y, lean:-.04, hip:KNEEL.hip, knee:KNEEL.knee,
+          sh:[[-.28,.22],[-1.20,-.10]], el:[-.62,-.22], head:-.14}
+};
+function blendPose(a, b, t){
+  if (t <= 0) return a;
+  if (t >= 1) return b;
+  return {
+    y:lerp(a.y,b.y,t), lean:lerp(a.lean,b.lean,t), head:lerp(a.head,b.head,t),
+    hip:[lerp(a.hip[0],b.hip[0],t), lerp(a.hip[1],b.hip[1],t)],
+    knee:[lerp(a.knee[0],b.knee[0],t), lerp(a.knee[1],b.knee[1],t)],
+    sh:[[lerp(a.sh[0][0],b.sh[0][0],t), lerp(a.sh[0][1],b.sh[0][1],t)],
+        [lerp(a.sh[1][0],b.sh[1][0],t), lerp(a.sh[1][1],b.sh[1][1],t)]],
+    el:[lerp(a.el[0],b.el[0],t), lerp(a.el[1],b.el[1],t)]
+  };
+}
+// the walk, written as a pose so it blends with everything else.
+// swing: how far each thigh swings either side of vertical, set from the stride length so the
+// planted foot travels exactly as fast as the ground goes by.
+// Over one cycle a leg's hip angle runs legA*sin(phase): rising while that foot is planted and
+// pushing back, falling while it swings through. The knee folds only during the swing, most
+// just after toe-off, and is straight again at heel strike.
+function walkPose(phase, amp, swing){
+  const s = Math.sin(phase), s2 = Math.sin(phase + Math.PI);
+  const legA = swing*amp, armA = swing*1.1*amp;
+  const bend = p => .04 + Math.max(0, Math.sin(p - Math.PI*.35))*.9*amp;
+  // the hips ride highest with one leg upright, lowest with both feet down
+  const drop = BOY.LEG/BOY.S*(1 - Math.cos(legA));
+  return {
+    y: -drop*(0.5 - 0.5*Math.cos(2*phase)),
+    lean: .05 + .06*amp,
+    head: .02 - .03*Math.sin(2*phase)*amp,
+    hip:[legA*s, legA*s2],
+    knee:[bend(phase), bend(phase + Math.PI)],
+    // each arm swings with the opposite leg, the elbow folding a little more going forward
+    sh:[[-armA*s, -.08], [-armA*s2, .08]],
+    el:[-.14 - .35*Math.max(0,s)*amp, -.14 - .35*Math.max(0,s2)*amp]
+  };
+}
+
+/* ============================================================
+   the garland and her name
+   ============================================================ */
+function buildFinale(name){
+  const fin = new THREE.Group();
+  const flowers = [], leaves = [];
+  const R = rng(23);
+  const W = 0.26, LIFT = 0.055;
+
+  const back = halo(PAL.marigold, 0.34);
+  back.position.set(0, 0.012, -0.02); back.renderOrder = 2; fin.add(back);
+
+  // a sayapatri garland, strung the way they're hung over a doorway
+  for (let i=0;i<26;i++){
+    const u2 = i/25;
+    const px = lerp(-W, W, u2);
+    const py = LIFT + Math.sin(Math.PI*u2)*0.030 - Math.pow(Math.abs(u2-0.5)*2, 2.4)*0.030;
+    const f = marigold(0.0105 + R()*0.0035, i%4 === 3 ? "#F6C23A" : PAL.marigold);
+    f.userData.home = new THREE.Vector3(px, py, 0);
+    f.userData.u = u2;
+    f.position.copy(f.userData.home);
+    f.scale.setScalar(0.0001);
+    fin.add(f); flowers.push(f);
+  }
+  // a few green leaves tucked into the string
+  for (let i=0;i<8;i++){
+    const u2 = (i+0.5)/8;
+    const px = lerp(-W*0.94, W*0.94, u2);
+    const py = LIFT + Math.sin(Math.PI*u2)*0.030 - Math.pow(Math.abs(u2-0.5)*2, 2.4)*0.030 - 0.010;
+    const lf = new THREE.Mesh(new THREE.IcosahedronGeometry(0.009, 0), smat("#3E6B35"));
+    lf.scale.set(1.5,.3,.9); lf.rotation.z = (R()-0.5)*1.2;
+    lf.position.set(px, py, -0.002);
+    lf.userData.u = u2;
+    lf.scale.multiplyScalar(0.0001);
+    lf.userData.base = new THREE.Vector3(1.5,.3,.9);
+    fin.add(lf); leaves.push(lf);
+  }
+
+  const nameHalo = halo("#FFBF7A", 0.16);
+  nameHalo.position.set(0, -0.012, -0.004); nameHalo.renderOrder = 3; fin.add(nameHalo);
+
+  const nm = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.30*512/1536),
+    new THREE.MeshBasicMaterial({map:makeNameTex(name), transparent:true, opacity:0,
+      depthWrite:false, depthTest:false, toneMapped:false}));
+  nm.position.set(0, -0.012, 0.006); nm.renderOrder = 12; fin.add(nm);
+
+  const rule = new THREE.Mesh(new THREE.PlaneGeometry(0.22, 0.22*64/512),
+    new THREE.MeshBasicMaterial({map:makeRuleTex(), transparent:true, opacity:0,
+      depthWrite:false, depthTest:false, toneMapped:false}));
+  rule.position.set(0, -0.046, 0.006); rule.renderOrder = 12; fin.add(rule);
+
+  fin.visible = false;
+  return {fin, flowers, leaves, nameMesh:nm, nameHalo, back, rule};
+}
+
+/* ============================================================
+   particles — fireflies out of the grass, stars, petals on the wind
+   ============================================================ */
+function makePoints(n, color, size, box, tex, flicker){
+  const base = new Float32Array(n*3), seeds = new Float32Array(n);
+  const R = rng(n*13 + (size*1000|0));
+  for (let i=0;i<n;i++){
+    base[i*3]   = box.x[0] + R()*(box.x[1]-box.x[0]);
+    base[i*3+1] = box.y[0] + R()*(box.y[1]-box.y[0]);
+    base[i*3+2] = box.z[0] + R()*(box.z[1]-box.z[0]);
+    seeds[i] = R()*100;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(base.slice(), 3));
+  if (flicker){
+    const col = new Float32Array(n*3); col.fill(1);
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
+  const m = new THREE.PointsMaterial({color, size, map:tex, transparent:true, opacity:0,
+    depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true,
+    vertexColors:!!flicker, toneMapped:false});
+  const pts = new THREE.Points(g, m); pts.frustumCulled = false;
+  return {pts, base, seeds, n, box, flicker};
+}
+
+// the petals that come off the garland: real little quads, so they tumble
+function buildPetals(n){
+  const tex = petalTex();
+  const items = [], R = rng(91);
+  const cols = [PAL.marigold, PAL.marigoldPale, PAL.guras, "#FFE1A8", PAL.gurasHi];
+  const geo = new THREE.PlaneGeometry(0.016, 0.011);
+  const group = new THREE.Group(); group.visible = false;
+  for (let i=0;i<n;i++){
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+      map:tex, color:cols[i%cols.length], transparent:true, opacity:0,
+      side:THREE.DoubleSide, depthWrite:false, toneMapped:false}));
+    group.add(m);
+    items.push({m, born:-99, x:0, y:0, z:0, vx:0, vy:0, vz:0,
+                rot:R()*6.283, vr:(R()-0.5)*5, ph:R()*6.283, sc:0.6 + R()*0.9});
+  }
+  return {group, items};
+}
+
+/* ============================================================
+   clouds and the sun that sets behind the range
+   ============================================================ */
+function buildClouds(root){
+  const clouds = [], R = rng(13);
+  for (let i=0;i<4;i++){
+    const g = new THREE.Group();
+    [[0,0,0,.048],[.048,-.008,.010,.038],[-.048,-.010,-.006,.036],[.016,.010,-.012,.030]]
+      .forEach(c => {
+        const m = new THREE.Mesh(new THREE.IcosahedronGeometry(c[3], 1),
+          smat("#FFD3A4", {emissive:"#FFD3A4", emissiveIntensity:.35, roughness:1, flatShading:true}));
+        m.position.set(c[0], c[1], c[2]); m.scale.y = .62; g.add(m);
+      });
+    g.position.set(0, 0.650 + i*0.028, -0.30 - i*0.07);
+    g.userData.off = i/4 + R()*0.1;
+    g.userData.y = g.position.y;
+    g.userData.scale = 0.64 + R()*0.45;
+    g.scale.setScalar(g.userData.scale);
+    root.add(g); clouds.push(g);
+  }
+  return clouds;
+}
+
+function buildSun(root){
+  const g = new THREE.Group();
+  const halo1 = halo("#FFD089", 0.62); halo1.material.opacity = .5; g.add(halo1);
+  const disc  = halo("#FFFCEE", 0.14); disc.material.opacity = .95; g.add(disc);
+  // It sits well behind the range, so it has to start high enough to actually clear the
+  // skyline — otherwise golden hour happens with the sun already hidden.
+  g.position.set(0.40, 0.64, -0.86);
+  root.add(g);
+  return {g, halo:halo1, disc, y0:0.64};
+}
+</script>
+<script>
+/* ============================================================
+   light: golden hour falling into dusk
+   The 2D build's own colour script, driving three.js lights instead of gradient stops.
+   ============================================================ */
+function skyStops(d){
+  const a = d < 1 ? PAL.skyDay  : PAL.skyDusk;
+  const b = d < 1 ? PAL.skyDusk : PAL.skyNite;
+  const u = d < 1 ? d : clamp(d-1, 0, 1);
+  const out = [];
+  for (let i=0;i<5;i++) out.push(mix(a[i], b[i], u));
+  return out;
+}
+
+/* ============================================================
+   the diorama
+   ============================================================ */
+AFRAME.registerComponent('diorama', {
+  init(){
+    const root = this.root = new THREE.Group();
+    this.el.object3D.add(root);
+    this.camPos = new THREE.Vector3();
+    this.tmpV   = new THREE.Vector3();
+    this.userRot = 0; this.amp = 0; this.yaw = 0; this.started = false;
+    this.blink = 1; this.tilt = null; this.lastU = 0;
+    this.tiltAuto = !DEMO && TILT_FIXED === null && CONFIG.ar.tiltAuto;
+    const B = CONFIG.beats;
+
+    this.setupRenderer();
+    this.el.sceneEl.addEventListener('renderstart', ()=> this.setupRenderer());
+    GLOW = glowTex();
+
+    /* ---- lights ---- */
+    const amb  = new THREE.AmbientLight('#FFF1DC', .78);
+    const hemi = new THREE.HemisphereLight('#FFE9C9', '#5A4458', .62);
+    const sun  = new THREE.DirectionalLight('#FFD09A', 1.55);
+    sun.position.set(.52, .74, -1.12).normalize().multiplyScalar(1.6);
+    const rim  = new THREE.DirectionalLight('#FF9A85', 0);
+    rim.position.set(-.7, .5, .9);
+    const moon = new THREE.DirectionalLight('#9FB4E8', 0);
+    moon.position.set(-.5, 1.0, .4);
+    sun.castShadow = !LITE;
+    sun.shadow.mapSize.set(MOBILE ? 1024 : 2048, MOBILE ? 1024 : 2048);
+    const sc = sun.shadow.camera;
+    sc.left = -.85; sc.right = .85; sc.top = .95; sc.bottom = -.75; sc.near = .02; sc.far = 4.0;
+    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.012; sun.shadow.radius = 4;
+    root.add(amb, hemi, sun, sun.target, rim, moon);
+    this.L = {amb, hemi, sun, rim, moon};
+
+    /* ---- the land ---- */
+    buildTerrain(root);
+    buildTerraces(root);
+    const ranges = this.ranges = buildRanges(root);
+    this.rangeMats = [ranges.snow, ranges.far, ranges.left, ranges.right].map(r => r.mesh.material);
+    this.rangeTint = new THREE.Color(); this.rangeGlow = new THREE.Color();
+    this._cWarm  = new THREE.Color('#FFE2C4');   // late afternoon
+    this._cGlow  = new THREE.Color('#FFB89E');   // alpenglow
+    this._cGlowE = new THREE.Color('#4A1A14');
+    this._cNight = new THREE.Color('#6F78B4');   // moonlight
+    this._cNightE= new THREE.Color('#121830');
+    const trail = this.trail = buildTrail(root);
+    this.trailLen = trail.getLength();
+    buildPines(root, ranges);
+    const river = buildRiver(root);
+    this.river = river.curve; this.riverTex = river.tex;
+    this.uB = buildBridge(root, trail, river.curve);
+    buildScatter(root);
+
+    const glint = halo('#FFF0C8', 0.08);
+    glint.position.set(0, H(0, riverZ(0)) + 0.03, riverZ(0));
+    root.add(glint); this.glint = glint;
+
+    /* ---- prayer flags: three runs, as on the card ---- */
+    this.flags = [];
+    prayerFlags(root, -0.44, 0.140, -0.30, -0.140, 0.160, 7, this.flags);  // over the terraces
+    prayerFlags(root,  0.44,-0.100,  0.22, -0.200, 0.150, 6, this.flags);  // the shrine's shoulder
+    prayerFlags(root, -0.30, 0.300, -0.12,  0.190, 0.130, 6, this.flags);  // across the gorge, clear of the trail
+
+    /* ---- the shrine ---- */
+    const temple = this.temple = buildTemple();
+    temple.g.position.set(TEMPLE_P.x, H(TEMPLE_P.x, TEMPLE_P.z), TEMPLE_P.z);
+    temple.g.rotation.y = -Math.PI*0.5 + 0.22;   // the open side faces the trail
+    root.add(temple.g);
+    // where on the trail he stops to pray
+    let uT = 0.6, best = 9;
+    for (let u=0; u<=1; u+=0.004){
+      const p = trail.getPointAt(u);
+      const d = Math.hypot(p.x-TEMPLE_P.x, p.z-TEMPLE_P.z);
+      if (d < best){ best = d; uT = u; }
+    }
+    // The nearest point is the apex of a switchback, where the trail is already bending away
+    // to the left; stopping there walked him through the bend and then turned him back to the
+    // shrine. Stop instead at the last point where he is still walking straight at it.
+    for (let u=uT; u>uT-0.08; u-=0.002){
+      const p = trail.getPointAt(u), tn = trail.getTangentAt(u);
+      const off = shortAngle(Math.atan2(tn.x, tn.z), Math.atan2(TEMPLE_P.x-p.x, TEMPLE_P.z-p.z));
+      if (Math.abs(off) < 0.20){ uT = u; break; }
+    }
+    this.uTemple = uT;
+
+    /* ---- the house ---- */
+    const house = this.house = buildHouse();
+    house.g.position.set(HOUSE_P.x, H(HOUSE_P.x, HOUSE_P.z), HOUSE_P.z);
+    house.g.rotation.y = 0.26;
+    root.add(house.g);
+
+    /* ---- the boy, and the shadow he casts ---- */
+    this.boy = buildBoy();
+    root.add(this.boy.root);
+    const shTex = (()=>{
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d');
+      const g = x.createRadialGradient(32,32,0,32,32,32);
+      g.addColorStop(0,'rgba(22,12,24,.55)'); g.addColorStop(.6,'rgba(22,12,24,.22)');
+      g.addColorStop(1,'rgba(22,12,24,0)');
+      x.fillStyle = g; x.fillRect(0,0,64,64);
+      return srgb(new THREE.CanvasTexture(c));
+    })();
+    const sh = this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(.07*BOY.K,.07*BOY.K),
+      new THREE.MeshBasicMaterial({map:shTex, transparent:true, opacity:.3, depthWrite:false}));
+    sh.rotation.x = -Math.PI/2; root.add(sh);
+
+    /* ---- sky furniture ---- */
+    this.clouds = buildClouds(root);
+    this.sun = buildSun(root);
+
+    /* ---- particles ---- */
+    const ffN = LITE ? 70 : 130, stN = LITE ? 70 : 120;
+    this.ff = makePoints(ffN, '#FFE38A', .030,
+      {x:[-.46,.46], y:[.05,.56], z:[-.44,.46]}, GLOW, true);
+    root.add(this.ff.pts);
+    this.stars = makePoints(stN, '#FFF8E4', .016,
+      {x:[-.62,.62], y:[.52,.98], z:[-.70,.40]}, GLOW, true);
+    root.add(this.stars.pts);
+    this.embers = makePoints(14, '#FFC070', .010,
+      {x:[-.01,.01], y:[.0,.07], z:[-.01,.01]}, GLOW, true);
+    this.embers.pts.position.copy(temple.diyaPos);
+    temple.g.add(this.embers.pts);
+
+    /* ---- her name, in a garland of marigolds, over the house ---- */
+    const fin = this.finale = buildFinale((CONFIG.herName||'').trim());
+    fin.fin.position.set(HOUSE_P.x, HOUSE_Y + 0.30, HOUSE_P.z + 0.06);
+    root.add(fin.fin);
+
+    this.petals = buildPetals(LITE ? 14 : 26);
+    root.add(this.petals.group);
+
+    if (DEMO){
+      addEventListener('pointermove', e => { if (e.buttons & 1) this.userRot += e.movementX*.008; });
+    }
+  },
+
+  setupRenderer(){
+    if (this._renderReady) return;
+    const r = this.el.sceneEl.renderer; if (!r) return;
+    this._renderReady = true;
+    r.shadowMap.enabled = !LITE;
+    r.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Cap pixel ratio: 2 on phones keeps the drawing buffer inside mobile-GPU limits.
+    try{ r.setPixelRatio(Math.min(window.devicePixelRatio||1, MOBILE ? 2 : 3)); }catch(e){}
+    try{ MAXANISO = r.capabilities.getMaxAnisotropy(); }catch(e){}
+    if (!LITE){
+      try{ this.el.sceneEl.object3D.environment = makeEnv(r); }
+      catch(e){ console.warn('env map skipped', e); }
+    }
+    // If the GPU drops the context, say so instead of showing a silent black screen.
+    try{
+      const cv = this.el.sceneEl.canvas;
+      if (cv) cv.addEventListener('webglcontextlost', ev => {
+        ev.preventDefault();
+        if (LITE){ hint('Graphics overloaded on this device — reload to retry.', true); return; }
+        hint('Graphics overloaded — tap here for the lighter version.', true);
+        const h = $('hint'); h.style.pointerEvents = 'auto';
+        h.onclick = ()=>{
+          const q = new URLSearchParams(location.search);
+          q.delete('full'); q.set('lite','1'); location.search = q.toString();
+        };
+      });
+    }catch(e){}
+  },
+
+  /* A diorama standing straight out of the card is only flattering when the card is lying
+     flat. Held upright — on a screen, or in someone's hand — you stare straight down the
+     island's own "up" axis and get a map. So lean it about the card's horizontal axis until
+     the camera sits CONFIG.ar.tilt degrees above its ground plane, and damp it so the lean
+     follows you smoothly instead of snapping. */
+  updateTilt(dt){
+    const o = this.el.object3D, par = o.parent; if (!par) return;
+    const d = par.worldToLocal(this.camPos.clone());
+    const len = d.length(), R = Math.hypot(d.y, d.z);
+    // Until the target is found MindAR parks the anchor on an all-zero matrix, so worldToLocal
+    // hands back NaN. Written as !(x>e) so NaN is rejected too — NaN<e is false, and one NaN
+    // frame would stick in the damped value and NaN the whole transform for the life of the page.
+    if (!(len > 1e-6) || !(R > 1e-6)) return;
+    const psi = Math.atan2(d.y, d.z);
+    const th = clamp(
+      Math.asin(clamp(Math.sin(CONFIG.ar.tilt*Math.PI/180)*len/R, -1, 1)) - psi,
+      20*Math.PI/180, Math.PI/2);
+    if (!isFinite(th)) return;
+    this.tilt = this.tilt === null ? th : damp(this.tilt, th, 4, dt);
+    o.rotation.x = this.tilt;
+  },
+
+  /* where he is on the trail, as a fraction of the climb */
+  walkU(t){
+    const B = CONFIG.beats, uT = this.uTemple;
+    if (t <= B.walkOne) return 0;
+    if (t < B.reachTemple) return uT * stroll(B.walkOne, B.reachTemple, t);
+    if (t < B.walkTwo) return uT;
+    if (t < B.reachHome) return uT + (1-uT) * stroll(B.walkTwo, B.reachHome, t);
+    return 1;
+  },
+
+  applyPose(p, dt){
+    const b = this.boy;
+    b.body.position.y = p.y;
+    b.upper.rotation.x = p.lean;
+    b.head.rotation.x = damp(b.head.rotation.x, p.head, 9, dt);
+    for (let i=0;i<2;i++){
+      b.hips[i].rotation.x = p.hip[i];
+      b.knees[i].rotation.x = p.knee[i];
+      b.shoulders[i].rotation.x = p.sh[i][0];
+      b.shoulders[i].rotation.z = p.sh[i][1];
+      b.elbows[i].rotation.x = p.el[i];
+    }
+  },
+
+  tick(time, dtms){
+    const dt = Math.min(dtms/1000, .1), ts = time/1000, B = CONFIG.beats;
+    P.update(dt);
+    const t = P.t;
+    updateLyrics(t);
+
+    const root = this.root, b = this.boy;
+    const cam = this.el.sceneEl.camera;
+    if (cam) cam.getWorldPosition(this.camPos);
+    if (this.tiltAuto) this.updateTilt(dt);
+    if (DEMO) root.rotation.y = this.userRot;
+
+    // the pop-up: it grows out of the card rather than simply being there
+    root.scale.setScalar(Math.max(.0001, easeOutBack(t/1.2)));
+
+    /* ---- golden hour falling into dusk ---- */
+    const dusk = ramp(B.walkTwo-2, B.reachHome+4, t) + ramp(B.reachHome+4, B.garland, t)*0.75;
+    const d1 = clamp(dusk, 0, 1), d2 = clamp(dusk-1, 0, 1);
+    const stops = skyStops(dusk);
+    const L = this.L;
+    L.amb.intensity = lerp(lerp(.78,.42,d1), .24, d2);
+    L.amb.color.set(mix('#FFF1DC', '#8E6E8E', d1)).lerp(new THREE.Color('#4A4472'), d2);
+    L.hemi.intensity = lerp(lerp(.62,.40,d1), .26, d2);
+    L.hemi.color.set(stops[1]);
+    L.hemi.groundColor.set(mix('#5A4458', '#241E34', d1));
+    L.sun.intensity = lerp(lerp(1.55,.62,d1), .14, d2);
+    L.sun.color.set(mix('#FFD09A', '#E0784F', d1)).lerp(new THREE.Color('#6E4A78'), d2);
+    L.rim.intensity = d1*.85*(1-d2*.45);
+    L.rim.color.set(mix('#FF9A85', '#8E6AB4', d2));
+    L.moon.intensity = d2*.34;
+
+    // the sun sinks behind the range, exactly as far as it does on the card
+    const sink = clamp(dusk, 0, 1.4);
+    const sy = this.sun.y0 - sink*0.42;
+    this.sun.g.position.y = sy;
+    this.sun.disc.material.opacity = clamp(1 - sink*0.95, 0, 1) * 0.95;
+    this.sun.halo.material.opacity = clamp(1 - sink*0.72, 0, 1) * 0.55;
+    this.sun.halo.material.color.set(mix('#FFD089', '#C8562E', d1));
+    this.sun.halo.scale.setScalar(0.62 + 0.10*Math.sin(ts*0.7));
+    // keep the key light roughly where the sun is, so the shadows lengthen with it
+    L.sun.position.set(.52, Math.max(.26, sy*1.1), -1.12).normalize().multiplyScalar(1.6);
+
+    this.clouds.forEach(c => {
+      c.position.x = -0.85 + ((ts*0.010 + c.userData.off) % 1) * 1.7;
+      c.position.y = c.userData.y + Math.sin(ts*0.3 + c.userData.off*6)*0.008;
+      c.children.forEach(m => {
+        m.material.color.set(mix('#FFD3A4', '#6E4A74', d1)).lerp(new THREE.Color('#2A2446'), d2);
+        m.material.emissiveIntensity = lerp(.35, .06, d1);
+      });
+    });
+
+    /* ---- the mountains through the day ----
+       Clear afternoon light, warming as the sun drops; alpenglow on the rock and snow at
+       sunset; then the cold blue of moonlight, with the snow still faintly holding the light. */
+    const warm = ramp(B.reachTemple - 6, B.walkTwo, t);
+    const glow = ramp(0.25, 0.75, d1) * (1 - ramp(0.15, 0.7, d2));
+    this.rangeTint.set('#FFFFFF').lerp(this._cWarm, warm*(1-d1))
+      .lerp(this._cGlow, glow).lerp(this._cNight, ramp(0.1, 0.9, d2));
+    this.rangeGlow.set('#000000').lerp(this._cGlowE, glow*0.3).lerp(this._cNightE, ramp(0.2, 1, d2));
+    this.rangeMats.forEach(m => { m.color.copy(this.rangeTint); m.emissive.copy(this.rangeGlow); });
+
+    /* ---- where he is ---- */
+    const u = this.walkU(t);
+    // stride follows the ground actually covered, so the feet never swing while he stands still
+    const speed = (this.walkU(t + .05) - this.walkU(t - .05)) / .1 * this.trailLen;
+    this.amp = damp(this.amp, clamp(speed / 0.012, 0, 1), 9, dt);
+    const p = this.trail.getPointAt(u), tan = this.trail.getTangentAt(u);
+    const step = Math.min(Math.abs(u - this.lastU) * this.trailLen, 0.02);   // a seek is not a step
+    this.lastU = u;
+    // a slow walker takes shorter steps, not just slower ones: aim for ~0.7 strides a second,
+    // and size the stride (two steps) to the pace. One stride = 4 x leg x sin(thigh swing).
+    this.stride = damp(this.stride || 0.06*BOY.K, clamp(speed / 0.7, 0.05*BOY.K, 0.11*BOY.K), 3, dt);
+    const swing = Math.asin(clamp(this.stride / (4*BOY.LEG), 0, 0.6));
+    this.phase = (this.phase || 0) + step / this.stride * Math.PI * 2;
+
+    const kneel = ramp(B.kneelDown, B.kneelDown+2.4, t) * (1 - ramp(B.riseUp, B.riseUp+2.0, t));
+    const bowAmt = ramp(B.riseUp+1.6, B.riseUp+2.8, t) * (1 - ramp(B.riseUp+3.0, B.walkTwo-0.2, t));
+    const turn  = ramp(B.turnAround, B.turnAround+2.2, t);
+    const offer = ramp(B.kneelOffer, B.kneelOffer+2.6, t);
+
+    let pose = blendPose(POSE.stand, walkPose(this.phase, this.amp, swing), this.amp);
+    if (kneel   > .001) pose = blendPose(pose, POSE.pray, kneel);
+    if (bowAmt  > .001) pose = blendPose(pose, POSE.namaste, bowAmt);
+    if (turn    > .001) pose = blendPose(pose, blendPose(POSE.stand, POSE.offer, offer), turn);
+    // he breathes, and rides a little higher at mid-stance
+    pose = Object.assign({}, pose);
+    pose.lean += Math.sin(t*1.5 + .6)*0.012*(1-this.amp);
+    this.applyPose(pose, dt);
+
+    const bob = Math.sin(t*1.5)*0.0012*(1-this.amp);
+    const lift = bridgeLift((u - this.uB) * this.trailLen);
+    b.root.position.set(p.x, H(p.x, p.z) + BOY.LIFT + lift + bob, p.z);
+
+    // which way he is looking
+    let target;
+    if (t >= B.turnAround){
+      const cl = root.worldToLocal(this.camPos.clone());
+      target = Math.atan2(cl.x - p.x, cl.z - p.z);
+    } else if ((t > B.reachTemple - 1 && t < B.walkTwo) || kneel > .01 || bowAmt > .01){
+      // from the last steps of the approach until he walks on, he faces the shrine
+      target = Math.atan2(TEMPLE_P.x - p.x, TEMPLE_P.z - p.z);
+    } else {
+      target = Math.atan2(tan.x, tan.z);
+    }
+    if (!this.started){ this.yaw = target; this.started = true; }
+    this.yaw += shortAngle(this.yaw, target) * (1 - Math.exp(-5*dt));
+    b.root.rotation.y = this.yaw;
+
+    // leaning into the hill
+    const fx = Math.sin(this.yaw)*0.035, fz = Math.cos(this.yaw)*0.035;
+    const slope = (H(p.x+fx, p.z+fz) - H(p.x-fx, p.z-fz)) / 0.07;
+    b.body.rotation.x = damp(b.body.rotation.x, -Math.atan(slope)*0.42*(1-kneel*0.7), 6, dt);
+
+    // blinking, and the gurans opening in his hand
+    const wantBlink = ((ts % 3.6) < .12) ? .16 : 1;
+    this.blink = damp(this.blink, wantBlink, 22, dt);
+    b.eyes.forEach(e => e.scale.y = this.blink);
+    const fl = spring((t - (B.kneelOffer + 0.3)) / 1.4);
+    b.flower.scale.setScalar(Math.max(.0001, fl));
+    b.fHalo.material.opacity = fl * (0.35 + 0.1*Math.sin(ts*4));
+
+    this.shadow.position.set(p.x, H(p.x, p.z) + 0.006 + lift, p.z);
+    this.shadow.material.opacity = (0.32 - Math.abs(pose.y)*2.2) * clamp(root.scale.x, 0, 1);
+    this.shadow.scale.setScalar(lerp(1, 0.88, this.amp*0.5));
+
+    /* ---- the lamp he lights ---- */
+    const T = this.temple;
+    const lampOn = ramp(B.kneelDown+2.2, B.kneelDown+4.0, t);
+    const flick = 1 + .14*Math.sin(ts*17) + .09*Math.sin(ts*29) + .05*Math.sin(ts*41);
+    T.flame.scale.set(Math.max(.0001, lampOn*(0.85+0.1*Math.sin(ts*9))),
+                      Math.max(.0001, lampOn*flick),
+                      Math.max(.0001, lampOn*(0.85+0.1*Math.sin(ts*9))));
+    T.flame.rotation.z = .06*Math.sin(ts*9);
+    T.dLight.intensity = lampOn*(0.75 + 0.18*Math.sin(ts*13));
+    T.dHalo.material.opacity = lampOn*(0.62 + 0.14*Math.sin(ts*13));
+    T.dHalo.scale.setScalar(0.075*(1 + 0.08*Math.sin(ts*17)));
+    T.bell.rotation.z = Math.sin(ts*3.1)*0.038*lampOn;
+    this.embers.pts.visible = lampOn > .05;
+    this.embers.pts.material.opacity = lampOn*0.75;
+    this.animPoints(this.embers, ts, 'rise');
+    // the oil lamps round the platform warm up as the light goes
+    const lampDusk = clamp(dusk*1.3, 0, 1);
+    T.lamps.forEach(L2 => {
+      L2.fl.material.opacity = lampDusk*0.9;
+      L2.hl.material.opacity = lampDusk*(0.45 + 0.14*Math.sin(ts*5 + L2.phase));
+      L2.hl.scale.setScalar(0.05*(1 + 0.07*Math.sin(ts*6 + L2.phase)));
+    });
+
+    /* ---- home ---- */
+    const Hs = this.house;
+    let lit = 0;
+    Hs.glowMats.forEach((m, i)=>{
+      const q = ramp(B.houseLights, B.houseLights + 0.6, t);
+      lit += q / Hs.glowMats.length;
+      m.color.set(mix('#2A2030', '#FFC866', q));
+      Hs.haloS[i].material.opacity = q*(0.62 + 0.1*Math.sin(ts*3.4 + i*1.3));
+      Hs.haloS[i].scale.setScalar(0.055*(1 + 0.07*Math.sin(ts*3 + i)));
+    });
+    Hs.light.intensity = 1.0*lit;
+    Hs.smoke.forEach((sm, i)=>{
+      const on = t > B.houseLights + 0.5;
+      const ph = ((ts*0.20 + i/Hs.smoke.length) % 1);
+      sm.visible = on;
+      sm.position.set(Hs.chimney.x + 0.012*Math.sin(ph*6 + i),
+                      Hs.chimney.y + ph*0.16,
+                      Hs.chimney.z + 0.010*Math.cos(ph*5 + i));
+      sm.scale.setScalar(0.022 + ph*0.055);
+      sm.material.opacity = on ? 0.28*(1-ph)*clamp((t - B.houseLights)/3, 0, 1) : 0;
+    });
+
+    /* ---- her name blooms ---- */
+    const F = this.finale;
+    F.fin.visible = t > B.garland - 0.2;
+    if (F.fin.visible){
+      F.fin.lookAt(this.camPos);
+      F.flowers.forEach(f => {
+        const s = spring((t - B.garland - Math.abs(f.userData.u - 0.5)*2.6) / 1.1);
+        f.scale.setScalar(Math.max(.0001, s));
+        const e = easeOutExpo((t - B.garland - Math.abs(f.userData.u - 0.5)*2.6) / 1.1);
+        f.position.x = lerp(0, f.userData.home.x, e);
+        f.position.y = lerp(0, f.userData.home.y, e);
+      });
+      F.leaves.forEach(lf => {
+        const s = Math.max(.0001, easeOutBack((t - B.garland - 0.5 - Math.abs(lf.userData.u-0.5)*2.4)/0.9));
+        lf.scale.set(lf.userData.base.x*s, lf.userData.base.y*s, lf.userData.base.z*s);
+      });
+      const np = ramp(B.garland + 1.6, B.garland + 4.0, t);
+      F.nameMesh.material.opacity = np;
+      F.nameMesh.position.y = -0.012 + (1-np)*0.020;
+      F.nameHalo.material.opacity = np*0.30;
+      F.rule.material.opacity = np;
+      F.rule.scale.x = np;
+      F.back.material.opacity = ramp(B.garland, B.garland+2.2, t)*(0.22 + 0.05*Math.sin(ts*3));
+    }
+
+    /* ---- petals on the wind ---- */
+    const pOn = t > B.garland + 1;
+    this.petals.group.visible = pOn;
+    if (pOn){
+      const R = this.petals;
+      for (const it of R.items){
+        if (t - it.born > 10 || it.born < 0){
+          it.born = t - Math.random()*9;
+          it.x = HOUSE_P.x + (Math.random()-0.5)*0.34;
+          it.y = HOUSE_Y + 0.40 + Math.random()*0.08;
+          it.z = HOUSE_P.z + 0.05 + (Math.random()-0.5)*0.12;
+          it.vx = (Math.random()-0.5)*0.016; it.vy = -0.030 - Math.random()*0.020;
+          it.vz = 0.006 + Math.random()*0.014;
+        }
+        const age = t - it.born;
+        it.m.position.set(it.x + it.vx*age + Math.sin(age*1.5 + it.ph)*0.022,
+                          it.y + it.vy*age,
+                          it.z + it.vz*age);
+        it.m.rotation.set(it.rot + it.vr*age*0.6, it.rot*0.7 + it.vr*age, it.vr*age*0.4);
+        it.m.scale.setScalar(it.sc);
+        it.m.material.opacity = clamp(age/1.2,0,1) * clamp((10-age)/3,0,1) * 0.92;
+      }
+    }
+
+    /* ---- fireflies rising out of the grass, and the first stars ---- */
+    const fAmt = ramp(B.walkTwo+2, B.reachHome, t);
+    this.ff.pts.visible = fAmt > 0.01;
+    this.ff.pts.material.opacity = fAmt*0.95;
+    const starAmt = clamp((dusk-0.35)/0.8, 0, 1);
+    this.stars.pts.visible = starAmt > 0.01;
+    this.stars.pts.material.opacity = starAmt*(0.55 + 0.25*Math.sin(ts*2));
+    this.animPoints(this.ff, ts, 'rise');
+    this.animPoints(this.stars, ts, 'twinkle');
+
+    /* ---- prayer flags in the wind ---- */
+    for (const f of this.flags){
+      f.pivot.rotation.y = f.baseRot + Math.sin(ts*2.3 + f.i*0.8)*0.30;
+      f.pivot.rotation.x = Math.sin(ts*1.9 + f.i)*0.12;
+      const pos = f.geo.attributes.position, base = f.base;
+      for (let k=0;k<pos.count;k++){
+        const x = base[k*3], y = base[k*3+1];
+        const d = clamp(x/0.03, 0, 1);            // 0 at the pole, 1 at the free edge
+        pos.setZ(k, (Math.sin(ts*6 + x*70 + f.i)*0.004 + Math.sin(ts*4 + y*40)*0.002)*d);
+      }
+      pos.needsUpdate = true;
+    }
+
+    /* ---- the river, holding the last of the sun ---- */
+    this.riverTex.offset.x = -ts*0.05;
+    this.riverTex.offset.y = Math.sin(ts*0.3)*0.015;
+    const gu = (ts*0.045) % 1, gp = this.river.getPointAt(gu);
+    this.glint.position.set(gp.x, H(gp.x, gp.z) + 0.028, gp.z);
+    this.glint.material.opacity = (0.40 + 0.32*Math.sin(ts*6)) * (1 - d1*0.8);
+    this.glint.scale.setScalar(0.055 + 0.02*Math.sin(ts*8));
+
+    /* ---- the overlay ---- */
+    if (t > B.finalLine && !$('endcard').classList.contains('on')){
+      $('endq').textContent = CONFIG.finalWords;
+      $('endcard').classList.add('on');
+    }
+    // the letter waits until the last line has had a moment to land
+    $('love').classList.toggle('on', t > B.finalLine + 5 && $('final').hidden);
+    if (DEMO && !this.seeking){ $('dSeek').value = t; $('dTime').textContent = t.toFixed(1)+'s'; }
+    // NB: no early-out when the song ends. The tracking has to keep running, or the diorama
+    // freezes in mid-air the moment the music stops.
+  },
+
+  animPoints(sys, ts, mode){
+    if (!sys.pts.visible) return;
+    const a = sys.pts.geometry.attributes.position, bs = sys.base, sd = sys.seeds, bx = sys.box;
+    for (let i=0;i<sys.n;i++){
+      let x = bs[i*3], y = bs[i*3+1], z = bs[i*3+2];
+      if (mode === 'rise'){
+        const rg = bx.y[1]-bx.y[0];
+        y = bx.y[0] + ((y - bx.y[0] + ts*0.022*(0.6 + (sd[i]%1))) % rg);
+        x += Math.sin(ts*0.8 + sd[i])*0.028;
+        z += Math.cos(ts*0.6 + sd[i]*2)*0.028;
+      } else {
+        y += Math.sin(ts*0.5 + sd[i])*0.008;
+      }
+      a.setXYZ(i, x, y, z);
+    }
+    a.needsUpdate = true;
+    if (sys.flicker){
+      const col = sys.pts.geometry.attributes.color;
+      for (let i=0;i<sys.n;i++){
+        const v = 0.35 + 0.65*Math.abs(Math.sin(ts*(1.4 + (sd[i]%1)*2.2) + sd[i]));
+        col.setXYZ(i, v, v, v);
+      }
+      col.needsUpdate = true;
+    }
+  }
+});
+</script>
+<script>
+/* ============================================================
+   boot
+   ============================================================ */
+const AR = CONFIG.ar;
+
+function dioramaComp(){
+  const e = document.querySelector('[diorama]');
+  return e && e.components && e.components.diorama;
+}
+
+/* ---------- the story ---------- */
+function resetStory(){
+  lyricIdx = -1; lyricGen++;
+  $('lyric').classList.remove('on');
+  $('endcard').classList.remove('on');
+  $('love').classList.remove('on');
+  $('final').hidden = true;
+  document.body.classList.remove('asking');
+  $('finalReply').classList.remove('on');
+  $('finalReply').textContent = '';
+  const d = dioramaComp();
+  if (d){ d.phase = 0; d.started = false; d.amp = 0; d.lastU = 0; }
+  P.seek(0);
+}
+
+function launch(){
+  if (DEMO){ launchDemo(); return; }
+  hint('Opening camera… [' + BUILD + (LITE ? ' lite' : ' full') + ']');
+
+  // A pre-flight getUserMedia that opens the camera and closes it again leaves a black video
+  // on some phones, so only the context and the permission get checked here. MindAR opens the
+  // camera exactly once.
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    hint('The camera needs a secure page: open this over https:// or http://localhost — not a file:// link.', true);
+    return;
+  }
+  if (navigator.permissions && navigator.permissions.query){
+    navigator.permissions.query({name:'camera'})
+      .then(p => p.state === 'denied'
+        ? hint('Camera permission is blocked. Allow it in your browser settings, then reload.', true)
+        : startAR())
+      .catch(startAR);
+  } else startAR();
+}
+
+// The diorama carries its own lighting rig (warm sun, dusk rim, hemisphere fill) as raw
+// three.js objects, which A-Frame cannot see — so it would also add its own default ambient
+// and directional, flattening every shadow. Drop them.
+const RENDER = (LITE
+  ? 'renderer="colorManagement: true; sortTransparentObjects: true"'
+  : 'renderer="colorManagement: true; toneMapping: ACESFilmic; exposure: 1.08; antialias: true; precision: high; highRefreshRate: true; sortTransparentObjects: true"')
+  + ' light="defaultLightsEnabled: false"';
+
+function startAR(){
+  const sc = AR.scale;
+  // Starting lean. With tiltAuto the island re-aims itself every frame (see updateTilt);
+  // 90 is the physically correct "stands straight out of the card" orientation.
+  const tilt = TILT_FIXED !== null ? TILT_FIXED : (AR.tiltAuto ? AR.tilt : 90);
+  // NOTE: no maxCanvasWidth/Height override — the default keeps the drawing buffer small
+  // enough for mobile GPUs. A larger cap plus a high pixelRatio blacks out the canvas.
+  $('stage').innerHTML =
+    '<a-scene mindar-image="imageTargetSrc: ' + AR.target +
+      '; uiLoading: no; uiScanning: no; uiError: no" ' + RENDER +
+    ' color-space="sRGB" vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">' +
+      '<a-camera position="0 0 0" look-controls="enabled: false"></a-camera>' +
+      '<a-entity id="anchor" mindar-image-target="targetIndex: 0">' +
+        '<a-entity diorama rotation="' + tilt + ' 0 0" position="0 ' + AR.lift + ' 0" ' +
+          'scale="' + sc + ' ' + sc + ' ' + sc + '"></a-entity>' +
+      '</a-entity>' +
+    '</a-scene>';
+
+  const scene = $('stage').querySelector('a-scene');
+  scene.addEventListener('arReady', ()=>{
+    hint('Point your camera at the card · ' + BUILD);
+    // MindAR works out the camera's fov and aspect from #stage's box the instant AR starts.
+    // If the layout had not settled by then (mobile URL bar, safe-area insets), make it
+    // measure again on the next frame.
+    requestAnimationFrame(()=> dispatchEvent(new Event('resize')));
+  });
+  scene.addEventListener('arError', ()=>
+    hint('The camera could not start. Close anything else using it, then reload.', true));
+
+  const anchor = $('anchor');
+  anchor.addEventListener('targetFound', ()=>{ hint(null); P.play(); });
+  anchor.addEventListener('targetLost',  ()=>{
+    P.pause();
+    if (P.t < CONFIG.beats.hold) hint('Keep the card in view · ' + BUILD);
+  });
+}
+
+/* ?demo — no camera, no card. The island hangs in front of a dusk background and the pointer
+   spins it. Good for composing and for retiming the beats, but remember what it does not
+   cover: it bypasses MindAR entirely, so "it works here" says nothing about the AR path. */
+function launchDemo(){
+  $('stage').innerHTML =
+    '<a-scene ' + RENDER + ' background="color: #140D1E"' +
+    ' vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">' +
+      '<a-entity camera look-controls="enabled: false" position="0 0.62 1.45" rotation="-19 0 0"></a-entity>' +
+      '<a-entity diorama rotation="0 0 0"></a-entity>' +
+    '</a-scene>';
+  $('demoBar').hidden = false;
+  $('dSeek').max = CONFIG.beats.hold + 6;
+  $('dPlay').onclick = ()=> P.playing ? P.pause() : P.play();
+  const sk = $('dSeek');
+  sk.oninput = ()=>{ const d = dioramaComp(); if (d) d.seeking = true; P.seek(+sk.value); };
+  const done = ()=>{ const d = dioramaComp(); if (d) d.seeking = false; };
+  sk.onchange = done; sk.addEventListener('pointerup', done);
+  hint('demo · drag to spin · ' + BUILD);
+  P.play();
+}
+
+/* ---------- the opening card ---------- */
+function begin(){
+  $('gate').classList.add('gone');
+  $('hud').classList.add('on');
+  P.unlock();                 // has to happen inside the tap, or mobile never lets us play
+  resetStory();
+  setupDiag();
+  launch();
+}
+$('begin').addEventListener('click', begin, {once:true});
+
+$('btnReplay').addEventListener('click', ()=>{ resetStory(); P.play(); });
+
+let muted = false;
+$('btnSound').addEventListener('click', ()=>{
+  muted = !muted;
+  P.audio.muted = muted;
+  $('btnSound').classList.toggle('off', muted);
+});
+
+/* ---------- the letter ---------- */
+const LT = CONFIG.letter;
+$('finalLead').textContent = LT.lead;
+$('finalQ').textContent = LT.ask;
+if (LT.np){
+  const s = document.createElement('span');
+  s.id = 'finalNp'; s.textContent = LT.np;
+  $('finalQ').appendChild(s);
+}
+$('yesBtn').textContent = LT.yes;
+
+$('love').addEventListener('click', ()=>{
+  $('final').hidden = false;
+  document.body.classList.add('asking');
+  $('love').classList.remove('on');
+});
+$('closeBtn').addEventListener('click', ()=>{
+  $('final').hidden = true;
+  document.body.classList.remove('asking');
+});
+$('yesBtn').addEventListener('click', ()=>{
+  const r = $('finalReply');
+  r.textContent = LT.reply; r.classList.add('on');
+  petalBurst();
+});
+
+// hearts, and sayapatri and gurans flowers, falling over her answer
+const HEART_COLS  = ["#CE2E4F", "#F0566F", "#E8436A", "#FF8FA3"];
+const FLOWER_COLS = [["#F0892B","#F6B23A"], ["#CE2E4F","#FFE1A8"], ["#F0566F","#FFE1A8"],
+                     ["#F6B23A","#F0892B"], ["#FFB3C6","#F6B23A"]];
+const heartSVG = c =>
+  '<svg viewBox="0 0 24 22"><path fill="' + c + '" d="M12 21.5C5.6 16.4 1 12.6 1 7.4 1 3.9 3.7 1.2 ' +
+  '7 1.2c2 0 3.9 1 5 2.6 1.1-1.6 3-2.6 5-2.6 3.3 0 6 2.7 6 6.2 0 5.2-4.6 9-11 14.1z"/></svg>';
+const flowerSVG = ([p, c]) => {
+  let g = '';
+  for (let k=0;k<5;k++)
+    g += '<ellipse cx="12" cy="6.2" rx="3.9" ry="5.6" fill="' + p + '" transform="rotate(' + k*72 + ' 12 12)"/>';
+  return '<svg viewBox="0 0 24 24">' + g + '<circle cx="12" cy="12" r="3.4" fill="' + c + '"/></svg>';
+};
+function petalBurst(){
+  if (REDUCED) return;
+  for (let i=0;i<46;i++){
+    const s = document.createElement('span');
+    s.className = 'petal';
+    const heart = i % 2 === 0;
+    const w = (heart ? 14 : 13) + Math.random()*14;
+    s.style.width = w + 'px';
+    s.style.height = (heart ? w*0.92 : w) + 'px';
+    s.innerHTML = heart ? heartSVG(HEART_COLS[(i/2|0) % HEART_COLS.length])
+                        : flowerSVG(FLOWER_COLS[(i/2|0) % FLOWER_COLS.length]);
+    s.style.left = (Math.random()*100) + 'vw';
+    s.style.opacity = (0.65 + Math.random()*0.35).toFixed(2);
+    s.style.setProperty('--dx', ((Math.random()-0.5)*180) + 'px');
+    // hearts drift down mostly upright; flowers spin as they fall
+    s.style.setProperty('--rot', ((Math.random()-0.5)*(heart ? 120 : 760)) + 'deg');
+    s.style.animationDuration = (3 + Math.random()*3.6) + 's';
+    s.style.animationDelay = (Math.random()*1.3) + 's';
+    document.body.appendChild(s);
+    setTimeout(()=> s.remove(), 9000);
+  }
+}
+
+// marigolds on the opening card
+(function markMarigolds(){
+  const mk = $('markPetals');
+  const NS = 'http://www.w3.org/2000/svg';
+  for (let i=0;i<8;i++){
+    const a = i/8*6.283;
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', (60 + Math.cos(a)*15).toFixed(1));
+    c.setAttribute('cy', (28 + Math.sin(a)*15).toFixed(1));
+    c.setAttribute('r', 4.6);
+    mk.appendChild(c);
+  }
+  const c = document.createElementNS(NS, 'circle');
+  c.setAttribute('cx', 60); c.setAttribute('cy', 28); c.setAttribute('r', 7);
+  c.setAttribute('fill', '#F0892B');
+  mk.appendChild(c);
+})();
+
+/* ---------- diagnostics ----------
+   Phones have no devtools. The fields below are chosen so that each failure we have actually
+   hit names itself: a zero-height stage, fov 0 / aspect Infinity, a NaN tilt, a dead clock.
+   A diagnostic that leaves out the broken field is worse than none — it builds confidence in
+   the wrong direction. */
+let diagEl = null;
+function setupDiag(){
+  if (!DEBUG || diagEl) return;
+  diagEl = document.createElement('div');
+  diagEl.id = 'diag';
+  document.body.appendChild(diagEl);
+  setInterval(()=>{
+    const scene = document.querySelector('a-scene');
+    const r = scene && scene.renderer, v = document.querySelector('video');
+    const d = dioramaComp(), st = $('stage'), c = scene && scene.camera;
+    diagEl.textContent = [
+      'build ' + BUILD + (LITE ? ' lite' : ' full') + (DEMO ? ' demo' : '') +
+        ' secure=' + isSecureContext,
+      'scene=' + !!scene + ' renderer=' + !!r,
+      'stage=' + (st ? st.clientWidth + 'x' + st.clientHeight : '-'),
+      // fov 0 / aspect Infinity here = MindAR measured a zero-height container (NaN projection)
+      'cam fov=' + (c ? (+c.fov).toFixed(1) : '-') +
+        ' aspect=' + (c ? (+c.aspect).toFixed(2) : '-') +
+        ' near=' + (c ? (+c.near).toFixed(3) : '-'),
+      't=' + P.t.toFixed(1) + ' audioOK=' + P.audioOK + ' playing=' + P.playing,
+      'rootScale=' + (d && d.root ? d.root.scale.x.toFixed(3) : '-') +
+        ' tilt=' + (d && d.tilt != null ? (d.tilt*180/Math.PI).toFixed(0) + '°' : '-'),
+      'draws=' + (r ? r.info.render.calls : '-') + ' tris=' + (r ? r.info.render.triangles : '-'),
+      'canvas=' + (r && r.domElement ? r.domElement.width + 'x' + r.domElement.height : '-'),
+      'video=' + (v ? v.videoWidth + 'x' + v.videoHeight + ' paused=' + v.paused : 'none')
+    ].join('\n');
+  }, 500);
+}
+</script>
+</body>
+</html>
